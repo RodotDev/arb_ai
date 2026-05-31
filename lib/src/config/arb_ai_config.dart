@@ -1,0 +1,109 @@
+/// Configuration model for `arb_ai.yaml` config files.
+class ArbAiConfig {
+  /// The AI translation provider. Currently supports 'gemini' (native).
+  final String provider;
+
+  /// The environment variable name holding the API key.
+  /// Defaults to 'GEMINI_API_KEY'.
+  final String apiKeyEnv;
+
+  /// The specific LLM model name to use.
+  /// Defaults to 'gemini-3.5-flash'.
+  final String model;
+
+  /// An optional custom API base URL.
+  final String? baseUrl;
+
+  /// Path to the source ARB template file (typically English).
+  /// Defaults to 'lib/l10n/app_en.arb'.
+  final String sourceArb;
+
+  /// List of target language codes to translate into (e.g., 'pt', 'pl', 'ar').
+  final List<String> targets;
+
+  /// Optional mapping of terms to force specific translations (glossary).
+  final Map<String, String> glossary;
+
+  /// Optional list of words/terms that must not be translated.
+  final List<String> doNotTranslate;
+
+  /// Optional instruction for translation tone (e.g. 'formal', 'informal').
+  final String? tone;
+
+  const ArbAiConfig({
+    required this.provider,
+    required this.apiKeyEnv,
+    required this.model,
+    this.baseUrl,
+    required this.sourceArb,
+    required this.targets,
+    required this.glossary,
+    required this.doNotTranslate,
+    this.tone,
+  });
+
+  /// Creates a default configuration instance.
+  factory ArbAiConfig.defaults() {
+    return const ArbAiConfig(
+      provider: 'gemini',
+      apiKeyEnv: 'GEMINI_API_KEY',
+      model: 'gemini-3.5-flash',
+      sourceArb: 'lib/l10n/app_en.arb',
+      targets: [],
+      glossary: {},
+      doNotTranslate: [],
+    );
+  }
+
+  /// Copies this configuration with optional overrides.
+  ArbAiConfig copyWith({
+    String? provider,
+    String? apiKeyEnv,
+    String? model,
+    String? baseUrl,
+    String? sourceArb,
+    List<String>? targets,
+    Map<String, String>? glossary,
+    List<String>? doNotTranslate,
+    String? tone,
+  }) {
+    return ArbAiConfig(
+      provider: provider ?? this.provider,
+      apiKeyEnv: apiKeyEnv ?? this.apiKeyEnv,
+      model: model ?? this.model,
+      baseUrl: baseUrl ?? this.baseUrl,
+      sourceArb: sourceArb ?? this.sourceArb,
+      targets: targets ?? this.targets,
+      glossary: glossary ?? this.glossary,
+      doNotTranslate: doNotTranslate ?? this.doNotTranslate,
+      tone: tone ?? this.tone,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArbAiConfig &&
+          runtimeType == other.runtimeType &&
+          provider == other.provider &&
+          apiKeyEnv == other.apiKeyEnv &&
+          model == other.model &&
+          baseUrl == other.baseUrl &&
+          sourceArb == other.sourceArb &&
+          targets.toString() == other.targets.toString() &&
+          glossary.toString() == other.glossary.toString() &&
+          doNotTranslate.toString() == other.doNotTranslate.toString() &&
+          tone == other.tone;
+
+  @override
+  int get hashCode =>
+      provider.hashCode ^
+      apiKeyEnv.hashCode ^
+      model.hashCode ^
+      baseUrl.hashCode ^
+      sourceArb.hashCode ^
+      targets.hashCode ^
+      glossary.hashCode ^
+      doNotTranslate.hashCode ^
+      tone.hashCode;
+}

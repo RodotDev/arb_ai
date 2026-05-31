@@ -1,0 +1,114 @@
+import 'dart:io';
+import 'package:yaml/yaml.dart';
+import 'arb_ai_config.dart';
+
+/// Service class to parse and validate `arb_ai.yaml` configuration.
+class ConfigParser {
+  /// Parses configuration from a YAML string.
+  static ArbAiConfig parse(String yamlContent) {
+    final doc = loadYaml(yamlContent);
+    if (doc == null) {
+      return ArbAiConfig.defaults();
+    }
+
+    if (doc is! YamlMap) {
+      throw const FormatException('Configuration root must be a YAML map.');
+    }
+
+    final defaults = ArbAiConfig.defaults();
+
+    final provider = doc['provider'] as String? ?? defaults.provider;
+    if (provider != 'gemini' && provider != 'openai') {
+      throw FormatException(
+        "Invalid 'provider': '$provider'. Supported providers are 'gemini' and 'openai'.",
+      );
+    }
+
+    final apiKeyEnv = doc['api_key_env'] as String? ?? defaults.apiKeyEnv;
+    final model = doc['model'] as String? ?? defaults.model;
+    final baseUrl = doc['base_url'] as String?;
+    final sourceArb = doc['source_arb'] as String? ?? defaults.sourceArb;
+
+    // Validate targets
+    final targetsVal = doc['targets'];
+    final targets = <String>[];
+    if (targetsVal != null) {
+      if (targetsVal is! YamlList) {
+        throw const FormatException("'targets' must be a list of language codes.");
+      }
+      for (final item in targetsVal) {
+        if (item is! String) {
+          throw FormatException("Every item in 'targets' must be a string, got '$item'.");
+        }
+        targets.add(item);
+      }
+    }
+
+    // Validate glossary
+    final glossaryVal = doc['glossary'];
+    final glossary = <String, String>{};
+    if (glossaryVal != null) {
+      if (glossaryVal is! YamlMap) {
+        throw const FormatException("'glossary' must be a map of string values.");
+      }
+      for (final entry in glossaryVal.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        if (key is! String || value is! String) {
+          throw FormatException(
+            "Glossary entries must be string-to-string mappings, got '$key: $value'.",
+          );
+        }
+        glossary[key] = value;
+      }
+    }
+
+    // Validate doNotTranslate
+    final dntVal = doc['do_not_translate'];
+    final doNotTranslate = <String>[];
+    if (dntVal != null) {
+      if (dntVal is! YamlList) {
+        throw const FormatException("'do_not_translate' must be a list of strings.");
+      }
+      for (final item in dntVal) {
+        if (item is! String) {
+          throw FormatException("Every item in 'do_not_translate' must be a string, got '$item'.");
+        }
+        doNotTranslate.add(item);
+      }
+    }
+
+    final tone = doc['tone'] as String?;
+
+    return ArbAiConfig(
+      provider: provider,
+      apiKeyEnv: apiKeyEnv,
+      model: model,
+      baseUrl: baseUrl,
+      sourceArb: sourceArb,
+      targets: targets,
+      glossary: glossary,
+      doNotTranslate: doNotTranslate,
+      tone: tone,
+    );
+  }
+
+  /// Parses configuration from a file.
+  /// Returns default configuration if the file does not exist.
+  static ArbAiConfig parseFile(File file) {
+    if (!file.existsSync()) {
+      return ArbAiConfig.defaults();
+    }
+    try {
+      final content = file.readAsStringSync();
+      return parse(content);
+    } catch (e) {
+      throw FormatException('Failed to parse configuration file ${file.path}: $e');
+    }
+  }
+
+  /// Parses configuration from a file path.
+  static ArbAiConfig parsePath(String path) {
+    return parseFile(File(path));
+  }
+}

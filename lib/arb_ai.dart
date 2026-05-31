@@ -3,6 +3,5 @@
 /// More dartdocs go here.
 library;
 
-export 'src/arb_ai_base.dart';
-
-// TODO: Export any libraries intended for clients of this package.
+export 'src/config/arb_ai_config.dart';
+export 'src/config/config_parser.dart';
