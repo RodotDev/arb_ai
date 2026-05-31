@@ -101,7 +101,9 @@ class IcuParser {
   List<IcuNode> parse() {
     final nodes = _parseNodes();
     if (_pos < input.length) {
-      throw FormatException('Unexpected character at position $_pos: "${input[_pos]}"');
+      throw FormatException(
+        'Unexpected character at position $_pos: "${input[_pos]}"',
+      );
     }
     return nodes;
   }
@@ -275,14 +277,18 @@ class IcuValidator {
     try {
       sourceNodes = IcuParser(source).parse();
     } catch (e) {
-      return ValidationResult.invalid('Source key "$key" has invalid ICU syntax: $e');
+      return ValidationResult.invalid(
+        'Source key "$key" has invalid ICU syntax: $e',
+      );
     }
 
     List<IcuNode> targetNodes;
     try {
       targetNodes = IcuParser(target).parse();
     } catch (e) {
-      return ValidationResult.invalid('Target translation for "$key" has invalid ICU syntax: $e');
+      return ValidationResult.invalid(
+        'Target translation for "$key" has invalid ICU syntax: $e',
+      );
     }
 
     // 1. Verify placeholders match exactly (no missing, no extra)
@@ -292,14 +298,14 @@ class IcuValidator {
     final missingVars = sourceVars.difference(targetVars);
     if (missingVars.isNotEmpty) {
       return ValidationResult.invalid(
-        'Missing placeholder variables: ${missingVars.map((v) => "{$v}").join(", ")}'
+        'Missing placeholder variables: ${missingVars.map((v) => "{$v}").join(", ")}',
       );
     }
 
     final extraVars = targetVars.difference(sourceVars);
     if (extraVars.isNotEmpty) {
       return ValidationResult.invalid(
-        'Unexpected placeholder variables: ${extraVars.map((v) => "{$v}").join(", ")}'
+        'Unexpected placeholder variables: ${extraVars.map((v) => "{$v}").join(", ")}',
       );
     }
 
@@ -309,7 +315,7 @@ class IcuValidator {
 
     if (sourceComplex.length != targetComplex.length) {
       return ValidationResult.invalid(
-        'Structural mismatch: source has ${sourceComplex.length} plural/select expressions, target has ${targetComplex.length}'
+        'Structural mismatch: source has ${sourceComplex.length} plural/select expressions, target has ${targetComplex.length}',
       );
     }
 
@@ -319,20 +325,20 @@ class IcuValidator {
 
       if (sExpr.type != tExpr.type) {
         return ValidationResult.invalid(
-          'Structural mismatch at expression $i: source is "${sExpr.type}", target is "${tExpr.type}"'
+          'Structural mismatch at expression $i: source is "${sExpr.type}", target is "${tExpr.type}"',
         );
       }
 
       if (sExpr.varName != tExpr.varName) {
         return ValidationResult.invalid(
-          'Variable mismatch at expression $i: source variable is "${sExpr.varName}", target variable is "${tExpr.varName}"'
+          'Variable mismatch at expression $i: source variable is "${sExpr.varName}", target variable is "${tExpr.varName}"',
         );
       }
 
       // Check mandatory 'other' category
       if (!tExpr.categories.contains('other')) {
         return ValidationResult.invalid(
-          'Missing mandatory "other" category in target expression for "${sExpr.varName}"'
+          'Missing mandatory "other" category in target expression for "${sExpr.varName}"',
         );
       }
 
@@ -343,7 +349,7 @@ class IcuValidator {
           final missingCldr = requiredCldr.toSet().difference(tExpr.categories);
           if (missingCldr.isNotEmpty) {
             return ValidationResult.invalid(
-              'Missing required CLDR plural categories for language "$targetLanguage": ${missingCldr.join(", ")}'
+              'Missing required CLDR plural categories for language "$targetLanguage": ${missingCldr.join(", ")}',
             );
           }
         }
@@ -372,6 +378,7 @@ class IcuValidator {
         }
       }
     }
+
     nodes.forEach(collect);
     return vars;
   }
@@ -381,17 +388,22 @@ class IcuValidator {
     final list = <_ComplexExprInfo>[];
     void collect(IcuNode node) {
       if (node is PluralNode) {
-        list.add(_ComplexExprInfo('plural', node.name, node.categories.keys.toSet()));
+        list.add(
+          _ComplexExprInfo('plural', node.name, node.categories.keys.toSet()),
+        );
         for (final catNodes in node.categories.values) {
           catNodes.forEach(collect);
         }
       } else if (node is SelectNode) {
-        list.add(_ComplexExprInfo('select', node.name, node.categories.keys.toSet()));
+        list.add(
+          _ComplexExprInfo('select', node.name, node.categories.keys.toSet()),
+        );
         for (final catNodes in node.categories.values) {
           catNodes.forEach(collect);
         }
       }
     }
+
     nodes.forEach(collect);
     return list;
   }

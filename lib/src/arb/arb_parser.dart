@@ -165,7 +165,9 @@ class ArbFile {
         if (val is Map<String, dynamic>) {
           metadata[realKey] = ArbKeyMetadata.fromJson(realKey, val);
         } else {
-          throw FormatException('Metadata key "$key" must map to a JSON object.');
+          throw FormatException(
+            'Metadata key "$key" must map to a JSON object.',
+          );
         }
       } else {
         if (val is String) {

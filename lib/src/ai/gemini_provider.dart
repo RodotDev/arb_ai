@@ -16,8 +16,8 @@ class GeminiProvider implements TranslationProvider {
   GeminiProvider({
     http.Client? httpClient,
     Future<void> Function(Duration)? delay,
-  })  : _client = httpClient ?? http.Client(),
-        _delay = delay ?? Future.delayed;
+  }) : _client = httpClient ?? http.Client(),
+       _delay = delay ?? Future.delayed;
 
   @override
   Future<Map<String, String>> translate({
@@ -36,22 +36,38 @@ class GeminiProvider implements TranslationProvider {
       );
     }
 
-    final baseUrl = config.baseUrl ?? 'https://generativelanguage.googleapis.com';
-    final cleanBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
-    final url = Uri.parse('$cleanBase/v1beta/models/${config.model}:generateContent?key=$apiKey');
+    final baseUrl =
+        config.baseUrl ?? 'https://generativelanguage.googleapis.com';
+    final cleanBase = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final url = Uri.parse(
+      '$cleanBase/v1beta/models/${config.model}:generateContent?key=$apiKey',
+    );
 
     // Build the detailed prompt enforcing ICU preservation, glossary, tone, and exclusions
     final promptBuffer = StringBuffer();
     final expandedLang = _expandLanguageName(targetLanguage);
-    final promptLangStr = expandedLang.toLowerCase() == targetLanguage.toLowerCase()
+    final promptLangStr =
+        expandedLang.toLowerCase() == targetLanguage.toLowerCase()
         ? '"$targetLanguage"'
         : '"$targetLanguage" ($expandedLang)';
 
-    promptBuffer.writeln('Translate the following application strings into the target language code $promptLangStr.');
-    promptBuffer.writeln('Preserve all ICU syntax strictly (plurals, genders, selects).');
-    promptBuffer.writeln('Do not translate placeholder names inside curly braces like {name}.');
-    promptBuffer.writeln('Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.');
-    promptBuffer.writeln('For plurals, ensure you use the correct CLDR plural categories for the target language (e.g., zero, one, two, few, many, other).');
+    promptBuffer.writeln(
+      'Translate the following application strings into the target language code $promptLangStr.',
+    );
+    promptBuffer.writeln(
+      'Preserve all ICU syntax strictly (plurals, genders, selects).',
+    );
+    promptBuffer.writeln(
+      'Do not translate placeholder names inside curly braces like {name}.',
+    );
+    promptBuffer.writeln(
+      'Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.',
+    );
+    promptBuffer.writeln(
+      'For plurals, ensure you use the correct CLDR plural categories for the target language (e.g., zero, one, two, few, many, other).',
+    );
 
     // Build schema properties dynamically, injecting key-level descriptions and placeholder metadata directly into the JSON Schema property description for superior contextual focus.
     final schemaProperties = <String, Map<String, dynamic>>{};
@@ -76,7 +92,11 @@ class GeminiProvider implements TranslationProvider {
             if (phDesc != null || phExample != null) {
               schemaDescBuffer.write(' (');
               if (phDesc != null) schemaDescBuffer.write('desc: $phDesc');
-              if (phExample != null) schemaDescBuffer.write('${phDesc != null ? ", " : ""}example: $phExample');
+              if (phExample != null) {
+                schemaDescBuffer.write(
+                  '${phDesc != null ? ", " : ""}example: $phExample',
+                );
+              }
               schemaDescBuffer.write(')');
             }
             schemaDescBuffer.write(';');
@@ -86,7 +106,8 @@ class GeminiProvider implements TranslationProvider {
 
       schemaProperties[key] = {
         'type': 'STRING',
-        if (schemaDescBuffer.isNotEmpty) 'description': schemaDescBuffer.toString().trim(),
+        if (schemaDescBuffer.isNotEmpty)
+          'description': schemaDescBuffer.toString().trim(),
       };
       requiredKeys.add(key);
     }
@@ -102,7 +123,9 @@ class GeminiProvider implements TranslationProvider {
     }
 
     if (config.doNotTranslate.isNotEmpty) {
-      promptBuffer.writeln('Do NOT translate the following terms (keep them exactly as they are):');
+      promptBuffer.writeln(
+        'Do NOT translate the following terms (keep them exactly as they are):',
+      );
       for (final term in config.doNotTranslate) {
         promptBuffer.writeln('- $term');
       }
@@ -131,7 +154,9 @@ class GeminiProvider implements TranslationProvider {
     }
 
     if (langGlossary != null && langGlossary.isNotEmpty) {
-      promptBuffer.writeln('Strictly apply the following glossary mappings if the term/concept matches:');
+      promptBuffer.writeln(
+        'Strictly apply the following glossary mappings if the term/concept matches:',
+      );
       langGlossary.forEach((key, value) {
         promptBuffer.writeln('- "$key" must be translated as "$value"');
       });
@@ -144,17 +169,17 @@ class GeminiProvider implements TranslationProvider {
       'contents': [
         {
           'parts': [
-            {'text': promptBuffer.toString()}
-          ]
-        }
+            {'text': promptBuffer.toString()},
+          ],
+        },
       ],
       'systemInstruction': {
         'parts': [
           {
             'text':
-                'You are an expert software localizer. You strictly translate user-provided JSON strings while mathematically preserving ICU syntax, placeholders, and returning a flat JSON object with the exact same keys.'
-          }
-        ]
+                'You are an expert software localizer. You strictly translate user-provided JSON strings while mathematically preserving ICU syntax, placeholders, and returning a flat JSON object with the exact same keys.',
+          },
+        ],
       },
       'generationConfig': {
         'responseMimeType': 'application/json',
@@ -164,9 +189,15 @@ class GeminiProvider implements TranslationProvider {
       'safetySettings': [
         {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
         {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
-        {'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold': 'BLOCK_NONE'},
-        {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_NONE'},
-      ]
+        {
+          'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          'threshold': 'BLOCK_NONE',
+        },
+        {
+          'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          'threshold': 'BLOCK_NONE',
+        },
+      ],
     };
 
     final bodyJson = jsonEncode(requestBody);
@@ -202,35 +233,49 @@ class GeminiProvider implements TranslationProvider {
         if (e is HttpException || e is StateError) {
           rethrow;
         }
-        throw HttpException('Network or connection error occurred: $e', uri: url);
+        throw HttpException(
+          'Network or connection error occurred: $e',
+          uri: url,
+        );
       }
     }
 
     if (response == null || response.statusCode != 200) {
-      throw HttpException('Failed to get successful response from Gemini API.', uri: url);
+      throw HttpException(
+        'Failed to get successful response from Gemini API.',
+        uri: url,
+      );
     }
 
     final responseData = jsonDecode(response.body) as Map<String, dynamic>;
     final candidates = responseData['candidates'] as List<dynamic>?;
     if (candidates == null || candidates.isEmpty) {
-      throw const FormatException('Gemini API returned no candidates in response.');
+      throw const FormatException(
+        'Gemini API returned no candidates in response.',
+      );
     }
 
     final candidate = candidates[0] as Map<String, dynamic>;
     final content = candidate['content'] as Map<String, dynamic>?;
     if (content == null) {
-      throw const FormatException('Gemini API candidate response is missing content.');
+      throw const FormatException(
+        'Gemini API candidate response is missing content.',
+      );
     }
 
     final parts = content['parts'] as List<dynamic>?;
     if (parts == null || parts.isEmpty) {
-      throw const FormatException('Gemini API content response is missing parts.');
+      throw const FormatException(
+        'Gemini API content response is missing parts.',
+      );
     }
 
     final part = parts[0] as Map<String, dynamic>;
     final text = part['text'] as String?;
     if (text == null || text.trim().isEmpty) {
-      throw const FormatException('Gemini API content part response is missing text.');
+      throw const FormatException(
+        'Gemini API content part response is missing text.',
+      );
     }
 
     try {
@@ -242,13 +287,17 @@ class GeminiProvider implements TranslationProvider {
         }
         final val = decoded[key];
         if (val is! String) {
-          throw FormatException('Response value for key "$key" is not a string.');
+          throw FormatException(
+            'Response value for key "$key" is not a string.',
+          );
         }
         result[key] = val;
       }
       return result;
     } catch (e) {
-      throw FormatException('Failed to parse translation response as a valid JSON map: $e\nResponse text: $text');
+      throw FormatException(
+        'Failed to parse translation response as a valid JSON map: $e\nResponse text: $text',
+      );
     }
   }
 

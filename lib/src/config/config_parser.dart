@@ -37,11 +37,15 @@ class ConfigParser {
     final targets = <String>[];
     if (targetsVal != null) {
       if (targetsVal is! YamlList) {
-        throw const FormatException("'targets' must be a list of language codes.");
+        throw const FormatException(
+          "'targets' must be a list of language codes.",
+        );
       }
       for (final item in targetsVal) {
         if (item is! String) {
-          throw FormatException("Every item in 'targets' must be a string, got '$item'.");
+          throw FormatException(
+            "Every item in 'targets' must be a string, got '$item'.",
+          );
         }
         targets.add(item);
       }
@@ -52,7 +56,9 @@ class ConfigParser {
     final glossary = <String, Map<String, String>>{};
     if (glossaryVal != null) {
       if (glossaryVal is! YamlMap) {
-        throw const FormatException("'glossary' must be a map of language configurations.");
+        throw const FormatException(
+          "'glossary' must be a map of language configurations.",
+        );
       }
       for (final langEntry in glossaryVal.entries) {
         final langCode = langEntry.key;
@@ -87,11 +93,15 @@ class ConfigParser {
     final doNotTranslate = <String>[];
     if (dntVal != null) {
       if (dntVal is! YamlList) {
-        throw const FormatException("'do_not_translate' must be a list of strings.");
+        throw const FormatException(
+          "'do_not_translate' must be a list of strings.",
+        );
       }
       for (final item in dntVal) {
         if (item is! String) {
-          throw FormatException("Every item in 'do_not_translate' must be a string, got '$item'.");
+          throw FormatException(
+            "Every item in 'do_not_translate' must be a string, got '$item'.",
+          );
         }
         doNotTranslate.add(item);
       }
@@ -133,7 +143,9 @@ class ConfigParser {
       final content = file.readAsStringSync();
       return parse(content);
     } catch (e) {
-      throw FormatException('Failed to parse configuration file ${file.path}: $e');
+      throw FormatException(
+        'Failed to parse configuration file ${file.path}: $e',
+      );
     }
   }
 
@@ -150,9 +162,14 @@ class ConfigParser {
         final doc = loadYaml(content);
         if (doc is YamlMap) {
           final arbDir = doc['arb-dir'] as String? ?? 'lib/l10n';
-          final templateArbFile = doc['template-arb-file'] as String? ?? 'app_en.arb';
-          final cleanArbDir = arbDir.endsWith('/') ? arbDir.substring(0, arbDir.length - 1) : arbDir;
-          final cleanTemplate = templateArbFile.startsWith('/') ? templateArbFile.substring(1) : templateArbFile;
+          final templateArbFile =
+              doc['template-arb-file'] as String? ?? 'app_en.arb';
+          final cleanArbDir = arbDir.endsWith('/')
+              ? arbDir.substring(0, arbDir.length - 1)
+              : arbDir;
+          final cleanTemplate = templateArbFile.startsWith('/')
+              ? templateArbFile.substring(1)
+              : templateArbFile;
           return '$cleanArbDir/$cleanTemplate';
         }
       } catch (_) {

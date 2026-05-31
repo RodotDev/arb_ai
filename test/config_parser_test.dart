@@ -46,10 +46,13 @@ batch_size: 10
       expect(config.baseUrl, equals('https://api.openai.com/v1'));
       expect(config.sourceArb, equals('l10n/source.arb'));
       expect(config.targets, equals(['pt', 'es']));
-      expect(config.glossary, equals({
-        'pt': {'hello': 'oi', 'world': 'mundo'},
-        'es': {'hello': 'hola'},
-      }));
+      expect(
+        config.glossary,
+        equals({
+          'pt': {'hello': 'oi', 'world': 'mundo'},
+          'es': {'hello': 'hola'},
+        }),
+      );
       expect(config.doNotTranslate, equals(['Flutter', 'Dart']));
       expect(config.tone, equals('formal'));
       expect(config.batchSize, equals(10));
@@ -111,12 +114,15 @@ glossary:
       );
     });
 
-    test('parse() throws FormatException on invalid do_not_translate format', () {
-      expect(
-        () => ConfigParser.parse('do_not_translate: Flutter'),
-        throwsA(isA<FormatException>()),
-      );
-    });
+    test(
+      'parse() throws FormatException on invalid do_not_translate format',
+      () {
+        expect(
+          () => ConfigParser.parse('do_not_translate: Flutter'),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test('parseFile() returns default config when file does not exist', () {
       final config = ConfigParser.parseFile(File('does_not_exist.yaml'));

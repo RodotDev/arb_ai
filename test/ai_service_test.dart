@@ -29,10 +29,14 @@ void main() {
     });
 
     test('throws ArgumentError on invalid maxKeys', () {
-      expect(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: 0),
-          throwsArgumentError);
-      expect(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: -1),
-          throwsArgumentError);
+      expect(
+        () => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: 0),
+        throwsArgumentError,
+      );
+      expect(
+        () => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: -1),
+        throwsArgumentError,
+      );
     });
   });
 
@@ -92,84 +96,96 @@ void main() {
       expect(callCount, 0);
     });
 
-    test('throws StateError when api key environment variable is not present', () async {
-      final mockClient = MockClient((request) async => http.Response('', 200));
-      final provider = GeminiProvider(httpClient: mockClient);
+    test(
+      'throws StateError when api key environment variable is not present',
+      () async {
+        final mockClient = MockClient(
+          (request) async => http.Response('', 200),
+        );
+        final provider = GeminiProvider(httpClient: mockClient);
 
-      await expectLater(
-        provider.translate(
-          strings: {'key': 'value'},
+        await expectLater(
+          provider.translate(
+            strings: {'key': 'value'},
+            targetLanguage: 'pt',
+            config: config.copyWith(apiKeyEnv: 'NON_EXISTENT_KEY_123'),
+          ),
+          throwsStateError,
+        );
+      },
+    );
+
+    test(
+      'performs successful translation with correct payload structure',
+      () async {
+        final mockClient = MockClient((request) async {
+          expect(request.url.scheme, 'https');
+          expect(request.url.host, 'generativelanguage.googleapis.com');
+          expect(
+            request.url.path,
+            '/v1beta/models/gemini-3.5-flash:generateContent',
+          );
+          expect(request.url.queryParameters['key'], 'mock-api-key');
+          expect(request.headers['Content-Type'], 'application/json');
+
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body, contains('contents'));
+          expect(body, contains('systemInstruction'));
+          expect(body, contains('generationConfig'));
+          expect(body, contains('safetySettings'));
+
+          // Check prompt contains glossary, tone, and doNotTranslate instructions
+          final prompt = body['contents'][0]['parts'][0]['text'] as String;
+          expect(prompt, contains('pt'));
+          expect(prompt, contains('formal'));
+          expect(prompt, contains('Flutter'));
+          expect(prompt, contains('hello'));
+          expect(prompt, contains('olá'));
+          expect(prompt, isNot(contains('hola')));
+
+          // Check responseSchema is configured correctly
+          final genConfig = body['generationConfig'] as Map<String, dynamic>;
+          expect(genConfig['responseMimeType'], 'application/json');
+          final responseSchema =
+              genConfig['responseSchema'] as Map<String, dynamic>;
+          expect(responseSchema['type'], 'OBJECT');
+          expect(responseSchema['required'], contains('welcome'));
+          expect(responseSchema['properties']['welcome']['type'], 'STRING');
+
+          final mockResponseBody = {
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {
+                      'text': jsonEncode({'welcome': 'Bem-vindo!'}),
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+
+          return http.Response(jsonEncode(mockResponseBody), 200);
+        });
+
+        final provider = GeminiProvider(httpClient: mockClient);
+        final result = await provider.translate(
+          strings: {'welcome': 'Welcome!'},
           targetLanguage: 'pt',
-          config: config.copyWith(apiKeyEnv: 'NON_EXISTENT_KEY_123'),
-        ),
-        throwsStateError,
-      );
-    });
+          config: config,
+        );
 
-    test('performs successful translation with correct payload structure', () async {
-      final mockClient = MockClient((request) async {
-        expect(request.url.scheme, 'https');
-        expect(request.url.host, 'generativelanguage.googleapis.com');
-        expect(request.url.path, '/v1beta/models/gemini-3.5-flash:generateContent');
-        expect(request.url.queryParameters['key'], 'mock-api-key');
-        expect(request.headers['Content-Type'], 'application/json');
-
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body, contains('contents'));
-        expect(body, contains('systemInstruction'));
-        expect(body, contains('generationConfig'));
-        expect(body, contains('safetySettings'));
-
-        // Check prompt contains glossary, tone, and doNotTranslate instructions
-        final prompt = body['contents'][0]['parts'][0]['text'] as String;
-        expect(prompt, contains('pt'));
-        expect(prompt, contains('formal'));
-        expect(prompt, contains('Flutter'));
-        expect(prompt, contains('hello'));
-        expect(prompt, contains('olá'));
-        expect(prompt, isNot(contains('hola')));
-
-        // Check responseSchema is configured correctly
-        final genConfig = body['generationConfig'] as Map<String, dynamic>;
-        expect(genConfig['responseMimeType'], 'application/json');
-        final responseSchema = genConfig['responseSchema'] as Map<String, dynamic>;
-        expect(responseSchema['type'], 'OBJECT');
-        expect(responseSchema['required'], contains('welcome'));
-        expect(responseSchema['properties']['welcome']['type'], 'STRING');
-
-        final mockResponseBody = {
-          'candidates': [
-            {
-              'content': {
-                'parts': [
-                  {
-                    'text': jsonEncode({'welcome': 'Bem-vindo!'})
-                  }
-                ]
-              }
-            }
-          ]
-        };
-
-        return http.Response(jsonEncode(mockResponseBody), 200);
-      });
-
-      final provider = GeminiProvider(httpClient: mockClient);
-      final result = await provider.translate(
-        strings: {'welcome': 'Welcome!'},
-        targetLanguage: 'pt',
-        config: config,
-      );
-
-      expect(result, {'welcome': 'Bem-vindo!'});
-    });
+        expect(result, {'welcome': 'Bem-vindo!'});
+      },
+    );
 
     test('segregates glossary terms per target language in prompt', () async {
       // Spanish Translation Test
       final mockClientEs = MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final prompt = body['contents'][0]['parts'][0]['text'] as String;
-        
+
         expect(prompt, contains('es'));
         expect(prompt, contains('hello'));
         expect(prompt, contains('hola'));
@@ -181,12 +197,12 @@ void main() {
               'content': {
                 'parts': [
                   {
-                    'text': jsonEncode({'welcome': '¡Bienvenido!'})
-                  }
-                ]
-              }
-            }
-          ]
+                    'text': jsonEncode({'welcome': '¡Bienvenido!'}),
+                  },
+                ],
+              },
+            },
+          ],
         };
         return http.Response(jsonEncode(mockResponseBody), 200);
       });
@@ -205,7 +221,10 @@ void main() {
         final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
         expect(prompt, contains('pl'));
-        expect(prompt, isNot(contains('Strictly apply the following glossary mappings')));
+        expect(
+          prompt,
+          isNot(contains('Strictly apply the following glossary mappings')),
+        );
         expect(prompt, isNot(contains('hello')));
 
         final mockResponseBody = {
@@ -214,12 +233,12 @@ void main() {
               'content': {
                 'parts': [
                   {
-                    'text': jsonEncode({'welcome': 'Witaj!'})
-                  }
-                ]
-              }
-            }
-          ]
+                    'text': jsonEncode({'welcome': 'Witaj!'}),
+                  },
+                ],
+              },
+            },
+          ],
         };
         return http.Response(jsonEncode(mockResponseBody), 200);
       });
@@ -233,58 +252,74 @@ void main() {
       expect(resultPl, {'welcome': 'Witaj!'});
     });
 
-    test('injects contextual metadata into responseSchema and tag preservation into prompt', () async {
-      final mockClient = MockClient((request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+    test(
+      'injects contextual metadata into responseSchema and tag preservation into prompt',
+      () async {
+        final mockClient = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
-        // Check if ARB tag preservation instruction is present in prompt
-        expect(prompt, contains('Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.'));
+          // Check if ARB tag preservation instruction is present in prompt
+          expect(
+            prompt,
+            contains(
+              'Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.',
+            ),
+          );
 
-        // Check that the metadata is injected directly into responseSchema description
-        final genConfig = body['generationConfig'] as Map<String, dynamic>;
-        final responseSchema = genConfig['responseSchema'] as Map<String, dynamic>;
-        final welcomeSchema = responseSchema['properties']['welcome'] as Map<String, dynamic>;
-        
-        expect(welcomeSchema['description'], contains('Context: Welcome message shown at homepage.'));
-        expect(welcomeSchema['description'], contains('Placeholders info: {name} (desc: User\'s display name, example: John Doe)'));
+          // Check that the metadata is injected directly into responseSchema description
+          final genConfig = body['generationConfig'] as Map<String, dynamic>;
+          final responseSchema =
+              genConfig['responseSchema'] as Map<String, dynamic>;
+          final welcomeSchema =
+              responseSchema['properties']['welcome'] as Map<String, dynamic>;
 
-        final mockResponseBody = {
-          'candidates': [
-            {
-              'content': {
-                'parts': [
-                  {
-                    'text': jsonEncode({'welcome': 'Bem-vindo, {name}!'})
-                  }
-                ]
-              }
-            }
-          ]
-        };
-        return http.Response(jsonEncode(mockResponseBody), 200);
-      });
+          expect(
+            welcomeSchema['description'],
+            contains('Context: Welcome message shown at homepage.'),
+          );
+          expect(
+            welcomeSchema['description'],
+            contains(
+              'Placeholders info: {name} (desc: User\'s display name, example: John Doe)',
+            ),
+          );
 
-      final provider = GeminiProvider(httpClient: mockClient);
-      final result = await provider.translate(
-        strings: {'welcome': 'Welcome, {name}!'},
-        targetLanguage: 'pt',
-        config: config,
-        descriptions: {
-          'welcome': 'Welcome message shown at homepage',
-        },
-        placeholders: {
-          'welcome': {
-            'name': {
-              'description': "User's display name",
-              'example': 'John Doe',
-            }
-          }
-        },
-      );
+          final mockResponseBody = {
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {
+                      'text': jsonEncode({'welcome': 'Bem-vindo, {name}!'}),
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+          return http.Response(jsonEncode(mockResponseBody), 200);
+        });
 
-      expect(result, {'welcome': 'Bem-vindo, {name}!'});
-    });
+        final provider = GeminiProvider(httpClient: mockClient);
+        final result = await provider.translate(
+          strings: {'welcome': 'Welcome, {name}!'},
+          targetLanguage: 'pt',
+          config: config,
+          descriptions: {'welcome': 'Welcome message shown at homepage'},
+          placeholders: {
+            'welcome': {
+              'name': {
+                'description': "User's display name",
+                'example': 'John Doe',
+              },
+            },
+          },
+        );
+
+        expect(result, {'welcome': 'Bem-vindo, {name}!'});
+      },
+    );
 
     test('implements exponential backoff on 429 rate limit error', () async {
       var callCount = 0;
@@ -299,12 +334,12 @@ void main() {
               'content': {
                 'parts': [
                   {
-                    'text': jsonEncode({'key': 'value_pt'})
-                  }
-                ]
-              }
-            }
-          ]
+                    'text': jsonEncode({'key': 'value_pt'}),
+                  },
+                ],
+              },
+            },
+          ],
         };
         return http.Response(jsonEncode(mockResponseBody), 200);
       });
@@ -350,11 +385,13 @@ void main() {
           targetLanguage: 'pt',
           config: config,
         ),
-        throwsA(isA<HttpException>().having(
-          (e) => e.message,
-          'message',
-          contains('Failed after 5 retries with status 429'),
-        )),
+        throwsA(
+          isA<HttpException>().having(
+            (e) => e.message,
+            'message',
+            contains('Failed after 5 retries with status 429'),
+          ),
+        ),
       );
 
       expect(callCount, 5);
@@ -375,120 +412,155 @@ void main() {
           targetLanguage: 'pt',
           config: config,
         ),
-        throwsA(isA<HttpException>().having(
-          (e) => e.message,
-          'message',
-          contains('Failed with status 500: Internal Server Error'),
-        )),
-      );
-    });
-
-    test('throws FormatException on malformed json or missing key in response', () async {
-      final mockClient = MockClient((request) async {
-        final mockResponseBody = {
-          'candidates': [
-            {
-              'content': {
-                'parts': [
-                  {
-                    'text': '{invalid json'
-                  }
-                ]
-              }
-            }
-          ]
-        };
-        return http.Response(jsonEncode(mockResponseBody), 200);
-      });
-
-      final provider = GeminiProvider(httpClient: mockClient);
-
-      await expectLater(
-        provider.translate(
-          strings: {'key': 'value'},
-          targetLanguage: 'pt',
-          config: config,
+        throwsA(
+          isA<HttpException>().having(
+            (e) => e.message,
+            'message',
+            contains('Failed with status 500: Internal Server Error'),
+          ),
         ),
-        throwsA(isA<FormatException>()),
       );
     });
 
-    test('expands regional targetLanguage code into human-friendly name in prompt', () async {
-      final mockClient = MockClient((request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final prompt = body['contents'][0]['parts'][0]['text'] as String;
-        
-        expect(prompt, contains('"pt_BR" (Brazilian Portuguese)'));
+    test(
+      'throws FormatException on malformed json or missing key in response',
+      () async {
+        final mockClient = MockClient((request) async {
+          final mockResponseBody = {
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {'text': '{invalid json'},
+                  ],
+                },
+              },
+            ],
+          };
+          return http.Response(jsonEncode(mockResponseBody), 200);
+        });
 
-        final mockResponseBody = {
-          'candidates': [
-            {
-              'content': {
-                'parts': [
-                  {
-                    'text': jsonEncode({'welcome': 'Bem-vindo!'})
-                  }
-                ]
-              }
-            }
-          ]
-        };
-        return http.Response(jsonEncode(mockResponseBody), 200);
-      });
+        final provider = GeminiProvider(httpClient: mockClient);
 
-      final provider = GeminiProvider(httpClient: mockClient);
-      await provider.translate(
-        strings: {'welcome': 'Welcome!'},
-        targetLanguage: 'pt_BR',
-        config: config,
-      );
-    });
+        await expectLater(
+          provider.translate(
+            strings: {'key': 'value'},
+            targetLanguage: 'pt',
+            config: config,
+          ),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
-    test('performs smart glossary lookup with targetLanguage region and base fallbacks', () async {
-      final customConfig = config.copyWith(
-        glossary: {
-          'pt': {'hello': 'olá_base'},
-          'pt-br': {'hello': 'olá_regional'},
-        },
-      );
+    test(
+      'expands regional targetLanguage code into human-friendly name in prompt',
+      () async {
+        final mockClient = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
-      // 1. Should use regional exact match (pt_BR matching pt-br)
-      final mockClientRegional = MockClient((request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final prompt = body['contents'][0]['parts'][0]['text'] as String;
-        expect(prompt, contains('olá_regional'));
-        expect(prompt, isNot(contains('olá_base')));
+          expect(prompt, contains('"pt_BR" (Brazilian Portuguese)'));
 
-        return http.Response(jsonEncode({
-          'candidates': [{'content': {'parts': [{'text': jsonEncode({'hello': 'olá_regional'})}]}}]
-        }), 200);
-      });
+          final mockResponseBody = {
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {
+                      'text': jsonEncode({'welcome': 'Bem-vindo!'}),
+                    },
+                  ],
+                },
+              },
+            ],
+          };
+          return http.Response(jsonEncode(mockResponseBody), 200);
+        });
 
-      final providerRegional = GeminiProvider(httpClient: mockClientRegional);
-      await providerRegional.translate(
-        strings: {'hello': 'hello'},
-        targetLanguage: 'pt_BR',
-        config: customConfig,
-      );
+        final provider = GeminiProvider(httpClient: mockClient);
+        await provider.translate(
+          strings: {'welcome': 'Welcome!'},
+          targetLanguage: 'pt_BR',
+          config: config,
+        );
+      },
+    );
 
-      // 2. Should use base fallback when regional matches nothing (e.g. pt_PT matching pt)
-      final mockClientFallback = MockClient((request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final prompt = body['contents'][0]['parts'][0]['text'] as String;
-        expect(prompt, contains('olá_base'));
-        expect(prompt, isNot(contains('olá_regional')));
+    test(
+      'performs smart glossary lookup with targetLanguage region and base fallbacks',
+      () async {
+        final customConfig = config.copyWith(
+          glossary: {
+            'pt': {'hello': 'olá_base'},
+            'pt-br': {'hello': 'olá_regional'},
+          },
+        );
 
-        return http.Response(jsonEncode({
-          'candidates': [{'content': {'parts': [{'text': jsonEncode({'hello': 'olá_base'})}]}}]
-        }), 200);
-      });
+        // 1. Should use regional exact match (pt_BR matching pt-br)
+        final mockClientRegional = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final prompt = body['contents'][0]['parts'][0]['text'] as String;
+          expect(prompt, contains('olá_regional'));
+          expect(prompt, isNot(contains('olá_base')));
 
-      final providerFallback = GeminiProvider(httpClient: mockClientFallback);
-      await providerFallback.translate(
-        strings: {'hello': 'hello'},
-        targetLanguage: 'pt_PT',
-        config: customConfig,
-      );
-    });
+          return http.Response(
+            jsonEncode({
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {
+                        'text': jsonEncode({'hello': 'olá_regional'}),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            200,
+          );
+        });
+
+        final providerRegional = GeminiProvider(httpClient: mockClientRegional);
+        await providerRegional.translate(
+          strings: {'hello': 'hello'},
+          targetLanguage: 'pt_BR',
+          config: customConfig,
+        );
+
+        // 2. Should use base fallback when regional matches nothing (e.g. pt_PT matching pt)
+        final mockClientFallback = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final prompt = body['contents'][0]['parts'][0]['text'] as String;
+          expect(prompt, contains('olá_base'));
+          expect(prompt, isNot(contains('olá_regional')));
+
+          return http.Response(
+            jsonEncode({
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {
+                        'text': jsonEncode({'hello': 'olá_base'}),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            200,
+          );
+        });
+
+        final providerFallback = GeminiProvider(httpClient: mockClientFallback);
+        await providerFallback.translate(
+          strings: {'hello': 'hello'},
+          targetLanguage: 'pt_PT',
+          config: customConfig,
+        );
+      },
+    );
   });
 }

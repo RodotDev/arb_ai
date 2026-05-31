@@ -30,9 +30,12 @@ class ArbStateManager {
       try {
         final content = stateFile.readAsStringSync();
         final decoded = jsonDecode(content) as Map<String, dynamic>;
-        final hashes = decoded['last_translated_hashes'] as Map<String, dynamic>? ?? {};
+        final hashes =
+            decoded['last_translated_hashes'] as Map<String, dynamic>? ?? {};
         _state = hashes.map((lang, value) {
-          final map = (value as Map<String, dynamic>).map((key, val) => MapEntry(key, val as String));
+          final map = (value as Map<String, dynamic>).map(
+            (key, val) => MapEntry(key, val as String),
+          );
           return MapEntry(lang, map);
         });
       } catch (_) {
@@ -44,9 +47,7 @@ class ArbStateManager {
 
   /// Saves the current state back to disk.
   void save() {
-    final data = {
-      'last_translated_hashes': _state,
-    };
+    final data = {'last_translated_hashes': _state};
     final jsonString = const JsonEncoder.withIndent('  ').convert(data);
     stateFile.writeAsStringSync('$jsonString\n');
   }

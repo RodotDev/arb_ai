@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:arb_ai/arb_ai.dart';
 
 /// This is an example of how to use `arb_ai` programmatically as a Dart library.
-/// While most users will use the CLI (`dart run arb_ai`), you can also integrate 
+/// While most users will use the CLI (`dart run arb_ai`), you can also integrate
 /// the translation orchestration directly into your own tools or scripts.
 void main() async {
   print('--- arb_ai Programmatic Example ---');
@@ -12,7 +12,9 @@ void main() async {
   // Ensure the required environment variable for your provider is set.
   if (!Platform.environment.containsKey('ARB_AI_API_KEY')) {
     print('\n[Warning] ARB_AI_API_KEY environment variable is not set.');
-    print('The AI provider will likely throw an authentication error if executed.\n');
+    print(
+      'The AI provider will likely throw an authentication error if executed.\n',
+    );
   }
 
   // 1. Define the configuration for the translation pipeline.
@@ -38,16 +40,15 @@ void main() async {
   try {
     print('\nOrchestrator is ready.');
     print('Uncomment the code below to execute the translation pipeline:');
-    
+
     // 3. Execute the pipeline
     // final success = await orchestrator.run();
-    // 
+    //
     // if (success) {
     //   print('Translation completed successfully!');
     // } else {
     //   print('Translation finished with some errors.');
     // }
-
   } catch (e) {
     print('An error occurred: $e');
   }

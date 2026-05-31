@@ -10,7 +10,12 @@ void main() {
     });
 
     test('parses options correctly', () async {
-      final results = runner.parser.parse(['--dry-run', '--check', '--config', 'custom.yaml']);
+      final results = runner.parser.parse([
+        '--dry-run',
+        '--check',
+        '--config',
+        'custom.yaml',
+      ]);
       expect(results['dry-run'], isTrue);
       expect(results['check'], isTrue);
       expect(results['config'], equals('custom.yaml'));

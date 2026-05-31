@@ -16,22 +16,26 @@ class ArbAiCommandRunner {
       ..addFlag(
         'dry-run',
         negatable: false,
-        help: 'Simulates the translation process, listing keys and estimating costs without calling APIs or writing files.',
+        help:
+            'Simulates the translation process, listing keys and estimating costs without calling APIs or writing files.',
       )
       ..addFlag(
         'check',
         negatable: false,
-        help: 'CI/CD safety check. Exits with code 1 if translations are missing or outdated, 0 otherwise.',
+        help:
+            'CI/CD safety check. Exits with code 1 if translations are missing or outdated, 0 otherwise.',
       )
       ..addFlag(
         'force',
         negatable: false,
-        help: 'Bypasses the translation state cache and forces a full translation of all text keys.',
+        help:
+            'Bypasses the translation state cache and forces a full translation of all text keys.',
       )
       ..addFlag(
         'clean',
         negatable: false,
-        help: 'Deletes the cached translation state file (.arb_ai_state.json) before running.',
+        help:
+            'Deletes the cached translation state file (.arb_ai_state.json) before running.',
       )
       ..addOption(
         'config',
@@ -74,14 +78,13 @@ class ArbAiCommandRunner {
 
       final configFile = File(configPath);
       if (!configFile.existsSync()) {
-        logger.warning('Configuration file not found at "$configPath". Using default configuration.');
+        logger.warning(
+          'Configuration file not found at "$configPath". Using default configuration.',
+        );
       }
 
       final config = ConfigParser.parseFile(configFile);
-      final orchestrator = ArbAiOrchestrator(
-        config: config,
-        logger: logger,
-      );
+      final orchestrator = ArbAiOrchestrator(config: config, logger: logger);
 
       final success = await orchestrator.run(
         dryRun: dryRun,

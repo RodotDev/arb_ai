@@ -24,12 +24,15 @@ Future<void> main() async {
   }
 
   if (apiKey == null) {
-    print('ARB_AI_API_KEY environment variable or .env file entry is required.');
+    print(
+      'ARB_AI_API_KEY environment variable or .env file entry is required.',
+    );
     exit(1);
   }
 
   final sourceFile = File('test/fixtures/spike/source_en.json');
-  final sourceJson = jsonDecode(await sourceFile.readAsString()) as Map<String, dynamic>;
+  final sourceJson =
+      jsonDecode(await sourceFile.readAsString()) as Map<String, dynamic>;
 
   // Extract only keys that aren't metadata for the translation payload
   final stringsToTranslate = <String, String>{};
@@ -59,7 +62,8 @@ Future<void> translateToLanguage(
     'https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey',
   );
 
-  final prompt = '''
+  final prompt =
+      '''
 Translate the following application strings into the target language code "$languageCode".
 Preserve all ICU syntax strictly (plurals, genders, selects).
 Do not translate placeholder names inside curly braces like {name}.
@@ -87,17 +91,17 @@ ${jsonEncode(strings)}
     'contents': [
       {
         'parts': [
-          {'text': prompt}
-        ]
-      }
+          {'text': prompt},
+        ],
+      },
     ],
     'systemInstruction': {
       'parts': [
         {
           'text':
-              'You are an expert software localizer. You strictly translate user-provided JSON strings while mathematically preserving ICU syntax, placeholders, and returning a flat JSON object with the exact same keys.'
-        }
-      ]
+              'You are an expert software localizer. You strictly translate user-provided JSON strings while mathematically preserving ICU syntax, placeholders, and returning a flat JSON object with the exact same keys.',
+        },
+      ],
     },
     'generationConfig': {
       'responseMimeType': 'application/json',
@@ -107,9 +111,15 @@ ${jsonEncode(strings)}
     'safetySettings': [
       {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
       {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
-      {'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold': 'BLOCK_NONE'},
-      {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_NONE'},
-    ]
+      {
+        'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        'threshold': 'BLOCK_NONE',
+      },
+      {
+        'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        'threshold': 'BLOCK_NONE',
+      },
+    ],
   };
 
   final response = await http.post(
@@ -144,4 +154,3 @@ ${jsonEncode(strings)}
   print(translatedContent);
   print('\n');
 }
-

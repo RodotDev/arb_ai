@@ -31,13 +31,20 @@ class ArbAiOrchestrator {
   }) : provider = provider ?? GeminiProvider();
 
   /// Resolves the target file path based on source file path, target language, and source locale.
-  File getTargetFile(String sourcePath, String targetLocale, String? sourceLocale) {
+  File getTargetFile(
+    String sourcePath,
+    String targetLocale,
+    String? sourceLocale,
+  ) {
     final file = File(sourcePath);
     final directory = file.parent.path;
     final name = file.uri.pathSegments.last;
 
     if (sourceLocale != null && name.contains('_$sourceLocale.arb')) {
-      final newName = name.replaceAll('_$sourceLocale.arb', '_$targetLocale.arb');
+      final newName = name.replaceAll(
+        '_$sourceLocale.arb',
+        '_$targetLocale.arb',
+      );
       return File('$directory/$newName');
     }
 
@@ -89,7 +96,9 @@ class ArbAiOrchestrator {
     final stateManager = ArbStateManager.forSourceArb(config.sourceArb);
 
     if (clean) {
-      logger.info('Cleaning translation state cache (deleting .arb_ai_state.json)...');
+      logger.info(
+        'Cleaning translation state cache (deleting .arb_ai_state.json)...',
+      );
       if (!dryRun) {
         stateManager.clean();
       }
@@ -101,10 +110,10 @@ class ArbAiOrchestrator {
     }
 
     logger.info('Starting arb_ai translation pipeline...');
-    logger.info('Source locale: ${sourceArb.locale ?? "not specified (fallback to English)"}');
+    logger.info(
+      'Source locale: ${sourceArb.locale ?? "not specified (fallback to English)"}',
+    );
     logger.info('Target languages: ${config.targets.join(", ")}');
-
-
 
     var allInSync = true;
     final Map<String, List<String>> outdatedKeysPerTarget = {};
@@ -117,7 +126,11 @@ class ArbAiOrchestrator {
     final Map<String, ArbFile?> targetArbs = {};
 
     for (final targetLang in config.targets) {
-      final targetFile = getTargetFile(config.sourceArb, targetLang, sourceArb.locale);
+      final targetFile = getTargetFile(
+        config.sourceArb,
+        targetLang,
+        sourceArb.locale,
+      );
       targetFiles[targetLang] = targetFile;
 
       ArbFile? targetArb;
@@ -125,7 +138,9 @@ class ArbAiOrchestrator {
         try {
           targetArb = ArbFile.parseFile(targetFile);
         } catch (e) {
-          logger.warning('Target file for "$targetLang" exists but failed to parse: $e. It will be overwritten.');
+          logger.warning(
+            'Target file for "$targetLang" exists but failed to parse: $e. It will be overwritten.',
+          );
         }
       }
       targetArbs[targetLang] = targetArb;
@@ -196,7 +211,9 @@ class ArbAiOrchestrator {
         return true;
       }
 
-      logger.error('CI Check Failed: Outdated or missing translations detected!');
+      logger.error(
+        'CI Check Failed: Outdated or missing translations detected!',
+      );
       for (final targetLang in config.targets) {
         final missing = missingKeysPerTarget[targetLang] ?? [];
         final outdated = outdatedKeysPerTarget[targetLang] ?? [];
@@ -214,7 +231,9 @@ class ArbAiOrchestrator {
     }
 
     if (allInSync) {
-      logger.success('All translations are fully up-to-date. Nothing to translate!');
+      logger.success(
+        'All translations are fully up-to-date. Nothing to translate!',
+      );
       return true;
     }
 
@@ -236,9 +255,13 @@ class ArbAiOrchestrator {
           }
         }
         if (nonTextToCopy.isNotEmpty) {
-          logger.info('  Copying ${nonTextToCopy.length} non-text resource keys directly:');
+          logger.info(
+            '  Copying ${nonTextToCopy.length} non-text resource keys directly:',
+          );
           for (final entry in nonTextToCopy.entries) {
-            logger.info('    - ${entry.key}: "${entry.value}" (non-text resource)');
+            logger.info(
+              '    - ${entry.key}: "${entry.value}" (non-text resource)',
+            );
           }
         }
       }
@@ -261,13 +284,20 @@ class ArbAiOrchestrator {
       final newTranslations = <String, String>{};
 
       if (toTranslate.isNotEmpty) {
-        logger.info('Translating ${toTranslate.length} keys to "$targetLang"...');
+        logger.info(
+          'Translating ${toTranslate.length} keys to "$targetLang"...',
+        );
 
-        final batches = TranslationBatcher.chunk(toTranslate, maxKeys: config.batchSize);
+        final batches = TranslationBatcher.chunk(
+          toTranslate,
+          maxKeys: config.batchSize,
+        );
 
         for (int i = 0; i < batches.length; i++) {
           final batch = batches[i];
-          logger.debug('Processing batch ${i + 1}/${batches.length} (${batch.length} keys) for "$targetLang"...');
+          logger.debug(
+            'Processing batch ${i + 1}/${batches.length} (${batch.length} keys) for "$targetLang"...',
+          );
 
           try {
             final translatedBatch = await _translateAndValidateBatch(
@@ -278,14 +308,18 @@ class ArbAiOrchestrator {
             );
             newTranslations.addAll(translatedBatch);
           } catch (e) {
-            logger.error('Failed to translate batch ${i + 1}/${batches.length} for "$targetLang": $e');
+            logger.error(
+              'Failed to translate batch ${i + 1}/${batches.length} for "$targetLang": $e',
+            );
             return false;
           }
         }
       }
 
       if (nonTextToCopy.isNotEmpty) {
-        logger.info('Copying ${nonTextToCopy.length} non-text resource keys directly for "$targetLang"...');
+        logger.info(
+          'Copying ${nonTextToCopy.length} non-text resource keys directly for "$targetLang"...',
+        );
         newTranslations.addAll(nonTextToCopy);
       }
 
@@ -304,7 +338,9 @@ class ArbAiOrchestrator {
           translations: mergedTranslations,
           sourceKeyOrder: sourceArb.keyOrder,
         );
-        logger.success('Successfully wrote translations to "${targetFile.path}".');
+        logger.success(
+          'Successfully wrote translations to "${targetFile.path}".',
+        );
       } catch (e) {
         logger.error('Failed to write target file "${targetFile.path}": $e');
         return false;
@@ -358,7 +394,9 @@ class ArbAiOrchestrator {
 
     while (currentBatch.isNotEmpty && attempt < maxRetries) {
       if (attempt > 0) {
-        logger.warning('ICU validation failed or API failed for some keys. Retrying translation attempt ${attempt + 1}/$maxRetries...');
+        logger.warning(
+          'ICU validation failed or API failed for some keys. Retrying translation attempt ${attempt + 1}/$maxRetries...',
+        );
       }
 
       Map<String, String> translated;
@@ -375,7 +413,9 @@ class ArbAiOrchestrator {
         if (attempt >= maxRetries) {
           rethrow;
         }
-        logger.warning('Translation call failed: $e. Retrying in ${1 << attempt} seconds...');
+        logger.warning(
+          'Translation call failed: $e. Retrying in ${1 << attempt} seconds...',
+        );
         await Future<void>.delayed(Duration(seconds: 1 << attempt));
         continue;
       }
@@ -407,7 +447,9 @@ class ArbAiOrchestrator {
           );
         } else {
           failedKeys[key] = sourceVal;
-          logger.warning('ICU validation failed for key "$key": ${valResult.error}');
+          logger.warning(
+            'ICU validation failed for key "$key": ${valResult.error}',
+          );
         }
       }
 

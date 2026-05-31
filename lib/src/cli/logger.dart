@@ -1,7 +1,6 @@
 // ignore_for_file: avoid_print
 import 'dart:io';
 
-
 /// Minimalist, human-friendly CLI logger.
 class Logger {
   /// Whether verbose/debug messages should be printed.
