@@ -1,5 +1,5 @@
 name: arb_ai
-description: AI-powered build-time translation of Dart or Flutter ARB files.
+description: A CLI and Dart package for AI-powered, build-time translation of Flutter ARB files with smart-diffing and CI/CD ready.
 version: 0.1.0
 repository: https://github.com/RodotDev/arb_ai
 issue_tracker: https://github.com/RodotDev/arb_ai/issues
@@ -26,3 +26,5 @@ topics:
   - i18n
   - l10n
   - codegen
+  - ai
+  - llm

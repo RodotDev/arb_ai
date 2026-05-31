@@ -18,6 +18,7 @@ class ArbPlaceholder {
   /// The description of the placeholder, for translator context.
   final String? description;
 
+  /// Creates a new [ArbPlaceholder] definition.
   const ArbPlaceholder({
     required this.name,
     this.type,
@@ -62,6 +63,7 @@ class ArbKeyMetadata {
   /// Custom key attributes (like type, context, etc.).
   final Map<String, dynamic> customAttributes;
 
+  /// Creates metadata for an ARB key.
   const ArbKeyMetadata({
     required this.key,
     this.description,
@@ -127,6 +129,7 @@ class ArbFile {
   /// The full list of keys in their original order in the JSON file.
   final List<String> keyOrder;
 
+  /// Creates an [ArbFile] representation of a parsed ARB file.
   const ArbFile({
     this.locale,
     required this.translations,

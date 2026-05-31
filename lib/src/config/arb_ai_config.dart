@@ -34,6 +34,7 @@ class ArbAiConfig {
   /// Defaults to 25.
   final int batchSize;
 
+  /// Creates an [ArbAiConfig] configuration instance manually.
   const ArbAiConfig({
     required this.provider,
     required this.apiKeyEnv,

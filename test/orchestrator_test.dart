@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:arb_ai/arb_ai.dart';
+import 'package:arb_ai/src/cli/logger.dart';
 import 'package:test/test.dart';
 
 class MockTranslationProvider implements TranslationProvider {

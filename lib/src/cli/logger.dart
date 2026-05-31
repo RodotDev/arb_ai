@@ -4,8 +4,10 @@ import 'dart:io';
 
 /// Minimalist, human-friendly CLI logger.
 class Logger {
+  /// Whether verbose/debug messages should be printed.
   final bool verbose;
 
+  /// Creates a [Logger] instance with optional [verbose] logging enabled.
   const Logger({this.verbose = false});
 
   /// Prints standard informational message.

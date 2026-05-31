@@ -7,8 +7,10 @@ import 'logger.dart';
 
 /// Command runner for parsing and executing the `arb_ai` CLI logic.
 class ArbAiCommandRunner {
+  /// The CLI options argument parser.
   final ArgParser parser = ArgParser();
 
+  /// Creates and configures a new [ArbAiCommandRunner] instance.
   ArbAiCommandRunner() {
     parser
       ..addFlag(

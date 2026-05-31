@@ -12,10 +12,18 @@ import 'config/arb_ai_config.dart';
 /// Orchestrator coordinating configuration, smart diffing, batching,
 /// AI translations, ICU validation, and deterministic writing.
 class ArbAiOrchestrator {
+  /// The translation configuration settings.
   final ArbAiConfig config;
+
+  /// The active AI translation provider instance.
   final TranslationProvider provider;
+
+  /// The logger used to output orchestration progress and diagnostics.
   final Logger logger;
 
+  /// Creates a new [ArbAiOrchestrator] instance with the given [config].
+  ///
+  /// Optionally, you can supply a custom [provider] and [logger].
   ArbAiOrchestrator({
     required this.config,
     TranslationProvider? provider,

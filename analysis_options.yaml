@@ -11,3 +11,4 @@ linter:
     - prefer_const_constructors
     - prefer_const_declarations
     - avoid_print
+    - public_member_api_docs

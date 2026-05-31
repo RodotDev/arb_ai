@@ -1,12 +1,18 @@
 /// Abstract base class for all ICU syntax nodes.
 abstract class IcuNode {
+  /// Const constructor for subclass initialization.
   const IcuNode();
+
+  /// Accepts a [visitor] to traverse the ICU syntax tree node.
   void accept(IcuVisitor visitor);
 }
 
 /// Represents a literal text segment in an ICU message.
 class LiteralNode extends IcuNode {
+  /// The literal text content.
   final String text;
+
+  /// Creates a literal segment node.
   const LiteralNode(this.text);
 
   @override
@@ -18,7 +24,10 @@ class LiteralNode extends IcuNode {
 
 /// Represents a simple variable placeholder in an ICU message, e.g. `{name}` or `{price, number, currency}`.
 class PlaceholderNode extends IcuNode {
+  /// The variable name or formatting parameter string.
   final String name;
+
+  /// Creates a placeholder node.
   const PlaceholderNode(this.name);
 
   @override
@@ -30,8 +39,13 @@ class PlaceholderNode extends IcuNode {
 
 /// Represents an ICU Plural expression, e.g. `{count, plural, =0{Zero} other{Other}}`.
 class PluralNode extends IcuNode {
+  /// The variable name used to select the plural form.
   final String name;
+
+  /// The categories map mapping plural cases (e.g., '=0', 'one', 'other') to their respective ICU nodes list.
   final Map<String, List<IcuNode>> categories;
+
+  /// Creates a plural node with the target variable and its categories.
   const PluralNode(this.name, this.categories);
 
   @override
@@ -43,8 +57,13 @@ class PluralNode extends IcuNode {
 
 /// Represents an ICU Select expression, e.g. `{gender, select, male{He} female{She} other{They}}`.
 class SelectNode extends IcuNode {
+  /// The variable name used to choose the select case.
   final String name;
+
+  /// The categories map mapping select cases (e.g., 'male', 'female', 'other') to their respective ICU nodes list.
   final Map<String, List<IcuNode>> categories;
+
+  /// Creates a select node with the target variable and its categories.
   const SelectNode(this.name, this.categories);
 
   @override
@@ -56,17 +75,26 @@ class SelectNode extends IcuNode {
 
 /// Visitor interface to traverse the ICU AST.
 abstract class IcuVisitor {
+  /// Visits a literal text segment node.
   void visitLiteral(LiteralNode node);
+
+  /// Visits a simple variable placeholder node.
   void visitPlaceholder(PlaceholderNode node);
+
+  /// Visits an ICU Plural expression node.
   void visitPlural(PluralNode node);
+
+  /// Visits an ICU Select expression node.
   void visitSelect(SelectNode node);
 }
 
 /// Recursive descent parser for the ICU message format.
 class IcuParser {
+  /// The raw input string containing the ICU message template.
   final String input;
   int _pos = 0;
 
+  /// Creates an [IcuParser] with the given raw [input] message string.
   IcuParser(this.input);
 
   /// Parses the input string and returns a list of top-level AST nodes.
@@ -206,10 +234,16 @@ class IcuParser {
 
 /// Represents the result of an ICU validation check.
 class ValidationResult {
+  /// Whether the validation check was successful.
   final bool isValid;
+
+  /// The error message if validation failed, or null if successful.
   final String? error;
 
+  /// Creates a valid [ValidationResult].
   const ValidationResult.valid() : isValid = true, error = null;
+
+  /// Creates an invalid [ValidationResult] with the given [error] message.
   const ValidationResult.invalid(this.error) : isValid = false;
 
   @override
@@ -227,6 +261,10 @@ class IcuValidator {
   };
 
   /// Validates a single target translation string against its source.
+  ///
+  /// Compares placeholders and complex ICU expressions (plurals/selects) to ensure
+  /// they structurally match the [source] ICU message and adhere to the [targetLanguage]
+  /// rules.
   static ValidationResult validate({
     required String key,
     required String source,

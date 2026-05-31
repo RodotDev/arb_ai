@@ -4,7 +4,7 @@
 [![CI](https://github.com/RodotDev/arb_ai/actions/workflows/ci.yml/badge.svg)](https://github.com/RodotDev/arb_ai/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/RodotDev/arb_ai/blob/main/LICENSE)
 
-AI-powered build-time localization and translation of Flutter/Dart ARB files. `arb_ai` automates target translations while mathematically preserving ICU syntax, plural categories, and placeholders.
+A CLI and Dart package for AI-powered, build-time translation of Flutter ARB files with smart-diffing and CI/CD ready. `arb_ai` automates target translations while mathematically preserving ICU syntax, plural categories, and placeholders.
 
 ---
 

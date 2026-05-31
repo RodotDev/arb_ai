@@ -12,6 +12,7 @@ class ArbStateManager {
   /// Map of target languages -> (key -> source value MD5 hash).
   Map<String, Map<String, String>> _state = {};
 
+  /// Creates an [ArbStateManager] instance bound to the specified [stateFile].
   ArbStateManager(this.stateFile) {
     _load();
   }
