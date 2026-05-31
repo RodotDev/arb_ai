@@ -1,0 +1,29 @@
+{
+  "@@locale": "en",
+  "welcomeMessage": "Welcome back, {name}!",
+  "@welcomeMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "inboxCount": "{count, plural, =0{You have no new messages, {name}.} =1{You have 1 new message, {name}.} other{You have {count} new messages, {name}.}}",
+  "@inboxCount": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "name": { "type": "String" }
+    }
+  },
+  "userGenderRole": "{gender, select, male{He is an admin.} female{She is an admin.} other{They are an admin.}}",
+  "@userGenderRole": {
+    "placeholders": {
+      "gender": { "type": "String" }
+    }
+  },
+  "complexSale": "{itemsCount, plural, =0{No items in your cart.} =1{You have 1 item in your cart costing {price}.} other{You have {itemsCount} items in your cart costing {price}.}}",
+  "@complexSale": {
+    "placeholders": {
+      "itemsCount": { "type": "int" },
+      "price": { "type": "String", "format": "currency" }
+    }
+  }
+}

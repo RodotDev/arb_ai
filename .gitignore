@@ -40,3 +40,12 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+# Local environment variables and secrets
+.env
+.env.*
+*.env
+
+# Local package caches / scratch files
+.pub-cache/
+.pub_cache/
