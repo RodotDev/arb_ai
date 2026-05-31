@@ -90,6 +90,7 @@ class ArbAiOrchestrator {
 
     // 1. Analyze and diff for each target language
     final Map<String, Map<String, String>> keysToTranslatePerTarget = {};
+    final Map<String, Map<String, String>> nonTextToCopyPerTarget = {};
     final Map<String, File> targetFiles = {};
     final Map<String, ArbFile?> targetArbs = {};
 
@@ -110,9 +111,16 @@ class ArbAiOrchestrator {
       final outdated = <String>[];
       final missing = <String>[];
       final toTranslate = <String, String>{};
+      final nonTextToCopy = <String, String>{};
 
       for (final key in sourceArb.translations.keys) {
         final sourceValue = sourceArb.translations[key]!;
+
+        // Check resource type
+        final metadata = sourceArb.metadata[key];
+        final type = metadata?.customAttributes['type'] as String?;
+        final isText = type == null || type == 'text';
+
         final upToDate = stateManager.isUpToDate(
           targetLanguage: targetLang,
           key: key,
@@ -121,18 +129,33 @@ class ArbAiOrchestrator {
         );
 
         if (!upToDate) {
-          toTranslate[key] = sourceValue;
-          if (targetArb != null && targetArb.translations.containsKey(key)) {
-            outdated.add(key);
+          if (isText) {
+            toTranslate[key] = sourceValue;
+            if (targetArb != null && targetArb.translations.containsKey(key)) {
+              outdated.add(key);
+            } else {
+              missing.add(key);
+            }
           } else {
-            missing.add(key);
+            nonTextToCopy[key] = sourceValue;
+            // Instantly mark non-text copies as up-to-date in memory
+            stateManager.updateState(
+              targetLanguage: targetLang,
+              key: key,
+              sourceValue: sourceValue,
+            );
           }
         }
       }
 
-      if (toTranslate.isNotEmpty) {
+      if (toTranslate.isNotEmpty || nonTextToCopy.isNotEmpty) {
         allInSync = false;
-        keysToTranslatePerTarget[targetLang] = toTranslate;
+        if (toTranslate.isNotEmpty) {
+          keysToTranslatePerTarget[targetLang] = toTranslate;
+        }
+        if (nonTextToCopy.isNotEmpty) {
+          nonTextToCopyPerTarget[targetLang] = nonTextToCopy;
+        }
         if (outdated.isNotEmpty) {
           outdatedKeysPerTarget[targetLang] = outdated;
         }
@@ -174,11 +197,25 @@ class ArbAiOrchestrator {
     // 3. Handle Dry Run Mode
     if (dryRun) {
       logger.info('=== Dry Run Simulation ===');
-      for (final targetLang in keysToTranslatePerTarget.keys) {
-        final toTranslate = keysToTranslatePerTarget[targetLang]!;
-        logger.info('Language "$targetLang" would translate ${toTranslate.length} keys:');
-        for (final entry in toTranslate.entries) {
-          logger.info('  - ${entry.key}: "${entry.value}"');
+      final targetsToUpdate = <String>{
+        ...keysToTranslatePerTarget.keys,
+        ...nonTextToCopyPerTarget.keys,
+      };
+      for (final targetLang in targetsToUpdate) {
+        final toTranslate = keysToTranslatePerTarget[targetLang] ?? {};
+        final nonTextToCopy = nonTextToCopyPerTarget[targetLang] ?? {};
+        logger.info('Language "$targetLang" would update:');
+        if (toTranslate.isNotEmpty) {
+          logger.info('  Translating ${toTranslate.length} text keys:');
+          for (final entry in toTranslate.entries) {
+            logger.info('    - ${entry.key}: "${entry.value}"');
+          }
+        }
+        if (nonTextToCopy.isNotEmpty) {
+          logger.info('  Copying ${nonTextToCopy.length} non-text resource keys directly:');
+          for (final entry in nonTextToCopy.entries) {
+            logger.info('    - ${entry.key}: "${entry.value}" (non-text resource)');
+          }
         }
       }
       logger.success('Dry run simulation completed successfully.');
@@ -186,32 +223,46 @@ class ArbAiOrchestrator {
     }
 
     // 4. Perform actual translations, validation, and writing
-    for (final targetLang in keysToTranslatePerTarget.keys) {
-      final toTranslate = keysToTranslatePerTarget[targetLang]!;
+    final targetsToUpdate = <String>{
+      ...keysToTranslatePerTarget.keys,
+      ...nonTextToCopyPerTarget.keys,
+    };
+
+    for (final targetLang in targetsToUpdate) {
+      final toTranslate = keysToTranslatePerTarget[targetLang] ?? {};
+      final nonTextToCopy = nonTextToCopyPerTarget[targetLang] ?? {};
       final targetFile = targetFiles[targetLang]!;
       final targetArb = targetArbs[targetLang];
 
-      logger.info('Translating ${toTranslate.length} keys to "$targetLang"...');
-
-      final batches = TranslationBatcher.chunk(toTranslate, maxKeys: 25);
       final newTranslations = <String, String>{};
 
-      for (int i = 0; i < batches.length; i++) {
-        final batch = batches[i];
-        logger.debug('Processing batch ${i + 1}/${batches.length} (${batch.length} keys) for "$targetLang"...');
+      if (toTranslate.isNotEmpty) {
+        logger.info('Translating ${toTranslate.length} keys to "$targetLang"...');
 
-        try {
-          final translatedBatch = await _translateAndValidateBatch(
-            batch: batch,
-            targetLanguage: targetLang,
-            sourceArb: sourceArb,
-            stateManager: stateManager,
-          );
-          newTranslations.addAll(translatedBatch);
-        } catch (e) {
-          logger.error('Failed to translate batch ${i + 1}/${batches.length} for "$targetLang": $e');
-          return false;
+        final batches = TranslationBatcher.chunk(toTranslate, maxKeys: 25);
+
+        for (int i = 0; i < batches.length; i++) {
+          final batch = batches[i];
+          logger.debug('Processing batch ${i + 1}/${batches.length} (${batch.length} keys) for "$targetLang"...');
+
+          try {
+            final translatedBatch = await _translateAndValidateBatch(
+              batch: batch,
+              targetLanguage: targetLang,
+              sourceArb: sourceArb,
+              stateManager: stateManager,
+            );
+            newTranslations.addAll(translatedBatch);
+          } catch (e) {
+            logger.error('Failed to translate batch ${i + 1}/${batches.length} for "$targetLang": $e');
+            return false;
+          }
         }
+      }
+
+      if (nonTextToCopy.isNotEmpty) {
+        logger.info('Copying ${nonTextToCopy.length} non-text resource keys directly for "$targetLang"...');
+        newTranslations.addAll(nonTextToCopy);
       }
 
       // Merge newly translated keys with existing ones
@@ -258,6 +309,26 @@ class ArbAiOrchestrator {
     var currentBatch = Map<String, String>.from(batch);
     final Map<String, String> successfulTranslations = {};
 
+    // Build context descriptions and placeholder metadata maps for the batch
+    final descriptions = <String, String>{};
+    final placeholders = <String, Map<String, dynamic>>{};
+
+    for (final key in batch.keys) {
+      final metadata = sourceArb.metadata[key];
+      if (metadata != null) {
+        if (metadata.description != null && metadata.description!.isNotEmpty) {
+          descriptions[key] = metadata.description!;
+        }
+        if (metadata.placeholders.isNotEmpty) {
+          final phMap = <String, dynamic>{};
+          metadata.placeholders.forEach((phName, phValue) {
+            phMap[phName] = phValue.toJson();
+          });
+          placeholders[key] = phMap;
+        }
+      }
+    }
+
     int attempt = 0;
     const maxRetries = 3;
 
@@ -272,6 +343,8 @@ class ArbAiOrchestrator {
           strings: currentBatch,
           targetLanguage: targetLanguage,
           config: config,
+          descriptions: descriptions,
+          placeholders: placeholders,
         );
       } catch (e) {
         attempt++;

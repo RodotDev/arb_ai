@@ -24,6 +24,8 @@ class GeminiProvider implements TranslationProvider {
     required Map<String, String> strings,
     required String targetLanguage,
     required ArbAiConfig config,
+    Map<String, String>? descriptions,
+    Map<String, Map<String, dynamic>>? placeholders,
   }) async {
     if (strings.isEmpty) return {};
 
@@ -43,7 +45,41 @@ class GeminiProvider implements TranslationProvider {
     promptBuffer.writeln('Translate the following application strings into the target language code "$targetLanguage".');
     promptBuffer.writeln('Preserve all ICU syntax strictly (plurals, genders, selects).');
     promptBuffer.writeln('Do not translate placeholder names inside curly braces like {name}.');
+    promptBuffer.writeln('Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.');
     promptBuffer.writeln('For plurals, ensure you use the correct CLDR plural categories for the target language (e.g., zero, one, two, few, many, other).');
+
+    // Inject contextual descriptions and placeholder examples/descriptions if available
+    final contextBuffer = StringBuffer();
+    for (final key in strings.keys) {
+      final desc = descriptions?[key];
+      final keyPlaceholders = placeholders?[key];
+
+      if ((desc != null && desc.isNotEmpty) || (keyPlaceholders != null && keyPlaceholders.isNotEmpty)) {
+        contextBuffer.writeln('- "$key":');
+        if (desc != null && desc.isNotEmpty) {
+          contextBuffer.writeln('  - Description: $desc');
+        }
+        if (keyPlaceholders != null && keyPlaceholders.isNotEmpty) {
+          keyPlaceholders.forEach((phName, phMetadata) {
+            if (phMetadata is Map<String, dynamic>) {
+              final phDesc = phMetadata['description'];
+              final phExample = phMetadata['example'];
+              if (phDesc != null || phExample != null) {
+                contextBuffer.write('  - Placeholder "$phName":');
+                if (phDesc != null) contextBuffer.write(' Description: $phDesc.');
+                if (phExample != null) contextBuffer.write(' Example value: $phExample.');
+                contextBuffer.writeln();
+              }
+            }
+          });
+        }
+      }
+    }
+
+    if (contextBuffer.isNotEmpty) {
+      promptBuffer.writeln('\nContext & Placeholders metadata for each translation key:');
+      promptBuffer.write(contextBuffer.toString());
+    }
 
     if (config.tone != null && config.tone!.isNotEmpty) {
       promptBuffer.writeln('Use a ${config.tone} tone for the translation.');

@@ -15,11 +15,15 @@ class ArbPlaceholder {
   /// An example of the placeholder value.
   final String? example;
 
+  /// The description of the placeholder, for translator context.
+  final String? description;
+
   const ArbPlaceholder({
     required this.name,
     this.type,
     this.format,
     this.example,
+    this.description,
   });
 
   /// Parses a placeholder from JSON.
@@ -29,6 +33,7 @@ class ArbPlaceholder {
       type: json['type'] as String?,
       format: json['format'] as String?,
       example: json['example'] as String?,
+      description: json['description'] as String?,
     );
   }
 
@@ -38,6 +43,7 @@ class ArbPlaceholder {
       if (type != null) 'type': type,
       if (format != null) 'format': format,
       if (example != null) 'example': example,
+      if (description != null) 'description': description,
     };
   }
 }

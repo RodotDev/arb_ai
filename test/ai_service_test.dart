@@ -233,6 +233,57 @@ void main() {
       expect(resultPl, {'welcome': 'Witaj!'});
     });
 
+    test('injects contextual metadata and ARB tag preservation instructions into prompt', () async {
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+
+        // Check if context section and descriptions/placeholder metadata are formatted correctly
+        expect(prompt, contains('Context & Placeholders metadata for each translation key:'));
+        expect(prompt, contains('- "welcome":'));
+        expect(prompt, contains('  - Description: Welcome message shown at homepage'));
+        expect(prompt, contains('  - Placeholder "name": Description: User\'s display name. Example value: John Doe.'));
+        
+        // Check if ARB tag preservation instruction is present
+        expect(prompt, contains('Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.'));
+
+        final mockResponseBody = {
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({'welcome': 'Bem-vindo, {name}!'})
+                  }
+                ]
+              }
+            }
+          ]
+        };
+        return http.Response(jsonEncode(mockResponseBody), 200);
+      });
+
+      final provider = GeminiProvider(httpClient: mockClient);
+      final result = await provider.translate(
+        strings: {'welcome': 'Welcome, {name}!'},
+        targetLanguage: 'pt',
+        config: config,
+        descriptions: {
+          'welcome': 'Welcome message shown at homepage',
+        },
+        placeholders: {
+          'welcome': {
+            'name': {
+              'description': "User's display name",
+              'example': 'John Doe',
+            }
+          }
+        },
+      );
+
+      expect(result, {'welcome': 'Bem-vindo, {name}!'});
+    });
+
     test('implements exponential backoff on 429 rate limit error', () async {
       var callCount = 0;
       final mockClient = MockClient((request) async {

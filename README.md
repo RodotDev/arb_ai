@@ -10,7 +10,7 @@ AI-powered build-time localization and translation of Flutter/Dart ARB files. `a
 
 ## Features
 
-- **Gemini Native Intelligence**: Connects directly to Google's Native REST API (`gemini-3.5-flash` or `gemini-3.1-pro`), using `systemInstruction` and strict `responseSchema` constraints to yield perfect JSON maps on every response.
+- **Full ARB Specification Compliance**: Fully parses and forwards resource descriptions and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for superior contextual translation. Respects ARB specs by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
 - **True Smart Diffing**: Computes cryptographic MD5 hashes of source translation templates and tracks them locally in `.arb_ai_state.json`. It will only request translations for missing or modified keys, avoiding redundant API calls and keeping costs minimal.
 - **Rigid ICU Parser & Validator**: Analyzes both source and target strings using a custom-built recursive descent parser. Validates that placeholders, plurals, and select categories match, verifying target-language CLDR rules.
 - **Auto-Recovery Retry Loop**: Detects validation anomalies and automatically retries translations up to 3 times to heal outputs before applying them to your files.

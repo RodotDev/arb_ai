@@ -11,5 +11,7 @@ abstract class TranslationProvider {
     required Map<String, String> strings,
     required String targetLanguage,
     required ArbAiConfig config,
+    Map<String, String>? descriptions,
+    Map<String, Map<String, dynamic>>? placeholders,
   });
 }

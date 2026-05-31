@@ -17,4 +17,3 @@
 - Gemini system instruction: https://ai.google.dev/api/generate-content#v1beta.GenerationConfig
 - REST reference (campos de request/response): https://ai.google.dev/api
 - Gemini Models: https://ai.google.dev/gemini-api/docs/models
-- OpenAI compatibility endpoint: https://ai.google.dev/gemini-api/docs/openai

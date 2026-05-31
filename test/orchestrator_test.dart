@@ -4,11 +4,7 @@ import 'package:arb_ai/arb_ai.dart';
 import 'package:test/test.dart';
 
 class MockTranslationProvider implements TranslationProvider {
-  final Future<Map<String, String>> Function(
-    Map<String, String> strings,
-    String targetLanguage,
-    ArbAiConfig config,
-  ) onTranslate;
+  final Function onTranslate;
 
   MockTranslationProvider(this.onTranslate);
 
@@ -17,8 +13,16 @@ class MockTranslationProvider implements TranslationProvider {
     required Map<String, String> strings,
     required String targetLanguage,
     required ArbAiConfig config,
-  }) {
-    return onTranslate(strings, targetLanguage, config);
+    Map<String, String>? descriptions,
+    Map<String, Map<String, dynamic>>? placeholders,
+  }) async {
+    dynamic result;
+    try {
+      result = await onTranslate(strings, targetLanguage, config, descriptions, placeholders);
+    } catch (_) {
+      result = await onTranslate(strings, targetLanguage, config);
+    }
+    return Map<String, String>.from(result as Map);
   }
 }
 
@@ -113,9 +117,13 @@ void main() {
 
     test('performs dry-run without hitting provider or writing files', () async {
       var providerCalled = false;
-      final provider = MockTranslationProvider((strings, targetLanguage, config) async {
+      final provider = MockTranslationProvider((
+        Map<String, String> strings,
+        String targetLanguage,
+        ArbAiConfig config,
+      ) async {
         providerCalled = true;
-        return {};
+        return <String, String>{};
       });
 
       final orchestrator = ArbAiOrchestrator(
@@ -174,12 +182,16 @@ void main() {
     });
 
     test('successfully translates, validates ICU, and writes deterministic output', () async {
-      final provider = MockTranslationProvider((strings, targetLanguage, config) async {
+      final provider = MockTranslationProvider((
+        Map<String, String> strings,
+        String targetLanguage,
+        ArbAiConfig config,
+      ) async {
         expect(targetLanguage, equals('pt'));
         expect(strings, contains('welcome'));
         expect(strings, contains('inbox'));
 
-        return {
+        return <String, String>{
           'welcome': 'Bem-vindo, {name}!',
           'inbox': '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
         };
@@ -270,6 +282,101 @@ void main() {
       final success = await orchestrator.run();
       expect(success, isFalse);
       expect(callCount, 3); // maxRetries = 3
+    });
+
+    test('skips translating non-text resources (like type image) and copies them directly', () async {
+      // 1. Write source file with a non-text image resource
+      sourceFile.writeAsStringSync(jsonEncode({
+        '@@locale': 'en',
+        'welcome': 'Welcome!',
+        'logo_path': 'images/logo.png',
+        '@logo_path': {
+          'type': 'image',
+          'description': 'Main brand logo path'
+        }
+      }));
+
+      var providerCalledWithLogo = false;
+      final provider = MockTranslationProvider((
+        Map<String, String> strings,
+        String targetLanguage,
+        ArbAiConfig config,
+        Map<String, String>? descriptions,
+        Map<String, Map<String, dynamic>>? placeholders,
+      ) async {
+        if (strings.containsKey('logo_path')) {
+          providerCalledWithLogo = true;
+        }
+        return {
+          'welcome': 'Bem-vindo!',
+        };
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run();
+      expect(success, isTrue);
+      expect(providerCalledWithLogo, isFalse); // Logo was not translated by the AI
+
+      // 2. Assert logo_path was copied directly to target arb file
+      final targetFile = File('${tempDir.path}/app_pt.arb');
+      expect(targetFile.existsSync(), isTrue);
+      final targetJson = jsonDecode(targetFile.readAsStringSync()) as Map<String, dynamic>;
+      
+      expect(targetJson['welcome'], equals('Bem-vindo!'));
+      expect(targetJson['logo_path'], equals('images/logo.png')); // Kept original value
+    });
+
+    test('extracts descriptions and placeholders metadata and forwards them to provider', () async {
+      sourceFile.writeAsStringSync(jsonEncode({
+        '@@locale': 'en',
+        'welcome': 'Welcome, {name}!',
+        '@welcome': {
+          'description': 'Homepage greeting message',
+          'placeholders': {
+            'name': {
+              'description': 'User display name',
+              'example': 'Alice'
+            }
+          }
+        }
+      }));
+
+      Map<String, String>? receivedDescriptions;
+      Map<String, Map<String, dynamic>>? receivedPlaceholders;
+
+      final provider = MockTranslationProvider((
+        Map<String, String> strings,
+        String targetLanguage,
+        ArbAiConfig config,
+        Map<String, String>? descriptions,
+        Map<String, Map<String, dynamic>>? placeholders,
+      ) async {
+        receivedDescriptions = descriptions;
+        receivedPlaceholders = placeholders;
+        return {
+          'welcome': 'Bem-vindo, {name}!',
+        };
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run();
+      expect(success, isTrue);
+
+      expect(receivedDescriptions, isNotNull);
+      expect(receivedDescriptions!['welcome'], equals('Homepage greeting message'));
+      expect(receivedPlaceholders, isNotNull);
+      expect(receivedPlaceholders!['welcome']!['name']['description'], equals('User display name'));
+      expect(receivedPlaceholders!['welcome']!['name']['example'], equals('Alice'));
     });
   });
 }
