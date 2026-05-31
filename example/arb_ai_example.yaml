@@ -1,0 +1,62 @@
+# arb_ai.yaml
+#
+# This is an example configuration file for the `arb_ai` package.
+# Place a file named `arb_ai.yaml` in the root of your Flutter/Dart project
+# to customize how AI translations are performed when you run `dart run arb_ai`.
+#
+# If a field is omitted, its default value will be used.
+
+# The AI provider to use. (Optional)
+# Supported values: 'gemini', 'openai'.
+# Default: 'gemini'
+provider: gemini
+
+# The specific AI model to use for translations. (Optional)
+# Default: 'gemini-3.5-flash'
+model: gemini-3.5-flash
+
+# The environment variable key where your API key is stored. (Optional)
+# By default, it expects ARB_AI_API_KEY to be set in your environment.
+# Default: 'ARB_AI_API_KEY'
+api_key_env: ARB_AI_API_KEY
+
+# The path to your source ARB file. (Optional)
+# arb_ai automatically tries to infer this from your `l10n.yaml` file.
+# If not found or if you want to override it, specify the path here.
+# Default: 'lib/l10n/app_en.arb'
+source_arb: lib/l10n/app_en.arb
+
+# The list of target language codes to generate translations for. (Required)
+# These will generate files like `app_pt.arb`, `app_es.arb`, etc.
+targets:
+  - pt
+  - es
+  - fr
+  - de
+  - ja
+
+# A glossary to enforce specific translations for specific terms in different languages. (Optional)
+# Use this to keep branding consistent across languages.
+glossary:
+  pt:
+    Flutter: "Flutter"
+    Dart: "Dart"
+    app: "aplicativo"
+  es:
+    Flutter: "Flutter"
+    app: "aplicación"
+
+# A list of terms that should NEVER be translated by the AI in any language. (Optional)
+# Useful for product names, brands, or code snippets.
+do_not_translate:
+  - arb_ai
+  - Rodot
+
+# Define the tone/style of the translation. (Optional)
+tone: "Casual and friendly"
+
+# How many ARB items to send to the AI provider in a single request. (Optional)
+# Increasing this reduces API calls but might hit provider token limits.
+# Default: 10
+batch_size: 10
+
