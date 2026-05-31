@@ -378,5 +378,113 @@ void main() {
       expect(receivedPlaceholders!['welcome']!['name']['description'], equals('User display name'));
       expect(receivedPlaceholders!['welcome']!['name']['example'], equals('Alice'));
     });
+    test('respects batchSize by dividing translation into chunks', () async {
+      sourceFile.writeAsStringSync(jsonEncode({
+        '@@locale': 'en',
+        'key1': 'One',
+        'key2': 'Two',
+        'key3': 'Three',
+        'key4': 'Four',
+        'key5': 'Five',
+      }));
+
+      final configWithBatchSize2 = testConfig.copyWith(batchSize: 2);
+      var chunkSizes = <int>[];
+
+      final provider = MockTranslationProvider((
+        Map<String, String> strings,
+        String targetLanguage,
+        ArbAiConfig config,
+        Map<String, String>? descriptions,
+        Map<String, Map<String, dynamic>>? placeholders,
+      ) async {
+        chunkSizes.add(strings.length);
+        return strings.map((key, value) => MapEntry(key, 'Translated $value'));
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: configWithBatchSize2,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run();
+      expect(success, isTrue);
+
+      expect(chunkSizes.length, equals(3));
+      expect(chunkSizes[0], equals(2));
+      expect(chunkSizes[1], equals(2));
+      expect(chunkSizes[2], equals(1));
+      
+      final targetFile = File('${tempDir.path}/app_pt.arb');
+      final targetJson = jsonDecode(targetFile.readAsStringSync()) as Map<String, dynamic>;
+      expect(targetJson['key5'], equals('Translated Five'));
+    });
+
+    test('clean option deletes the cached state file and forces re-translation', () async {
+      var callCount = 0;
+      final provider = MockTranslationProvider((s, t, c, d, p) async {
+        callCount++;
+        return {
+          'welcome': 'Bem-vindo, {name}!',
+          'inbox': '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+        };
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      await orchestrator.run();
+      expect(callCount, 1);
+
+      // Run again: should be in-sync
+      await orchestrator.run();
+      expect(callCount, 1);
+
+      // Run with clean: true: should delete cache, re-translate, and recreate cache
+      final stateFile = File('${tempDir.path}/.arb_ai_state.json');
+      expect(stateFile.existsSync(), isTrue);
+
+      final success = await orchestrator.run(clean: true);
+      expect(success, isTrue);
+      expect(callCount, 2); // incremented because cache was deleted
+      expect(stateFile.existsSync(), isTrue); // Recreated at the end of the run
+    });
+
+    test('force option bypasses the state cache and forces re-translation', () async {
+      var callCount = 0;
+      final provider = MockTranslationProvider((strings, targetLanguage, config, d, p) async {
+        callCount++;
+        return {
+          'welcome': 'Bem-vindo, {name}!',
+          'inbox': '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+        };
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      // First run: translates and creates cache
+      var success = await orchestrator.run();
+      expect(success, isTrue);
+      expect(callCount, 1);
+
+      // Second run: should be in-sync, provider not called
+      success = await orchestrator.run();
+      expect(success, isTrue);
+      expect(callCount, 1); // still 1
+
+      // Third run with force: true: should translate again
+      success = await orchestrator.run(force: true);
+      expect(success, isTrue);
+      expect(callCount, 2); // incremented!
+    });
   });
 }
+

@@ -54,9 +54,16 @@ class ArbAiOrchestrator {
   /// - [dryRun]: If true, simulates the process and logs estimated actions without writing files or calling APIs.
   /// - [check]: If true, acts as a CI safety check. Verifies if any translations are out-of-sync or missing,
   ///   prints them, and returns false without making changes.
+  /// - [force]: If true, bypasses the translation state cache and forces translating all text keys.
+  /// - [clean]: If true, deletes the cryptographic translation state file (.arb_ai_state.json) before running.
   ///
   /// Returns `true` if successful or fully in sync, and `false` if check failed (out-of-sync).
-  Future<bool> run({bool dryRun = false, bool check = false}) async {
+  Future<bool> run({
+    bool dryRun = false,
+    bool check = false,
+    bool force = false,
+    bool clean = false,
+  }) async {
     final sourceFile = File(config.sourceArb);
     if (!sourceFile.existsSync()) {
       logger.error('Source ARB file does not exist at "${config.sourceArb}".');
@@ -72,6 +79,13 @@ class ArbAiOrchestrator {
     }
 
     final stateManager = ArbStateManager.forSourceArb(config.sourceArb);
+
+    if (clean) {
+      logger.info('Cleaning translation state cache (deleting .arb_ai_state.json)...');
+      if (!dryRun) {
+        stateManager.clean();
+      }
+    }
 
     if (config.targets.isEmpty) {
       logger.warning('No target languages specified in configuration.');
@@ -121,12 +135,14 @@ class ArbAiOrchestrator {
         final type = metadata?.customAttributes['type'] as String?;
         final isText = type == null || type == 'text';
 
-        final upToDate = stateManager.isUpToDate(
-          targetLanguage: targetLang,
-          key: key,
-          sourceValue: sourceValue,
-          targetArb: targetArb,
-        );
+        final upToDate = force
+            ? false
+            : stateManager.isUpToDate(
+                targetLanguage: targetLang,
+                key: key,
+                sourceValue: sourceValue,
+                targetArb: targetArb,
+              );
 
         if (!upToDate) {
           if (isText) {
@@ -239,7 +255,7 @@ class ArbAiOrchestrator {
       if (toTranslate.isNotEmpty) {
         logger.info('Translating ${toTranslate.length} keys to "$targetLang"...');
 
-        final batches = TranslationBatcher.chunk(toTranslate, maxKeys: 25);
+        final batches = TranslationBatcher.chunk(toTranslate, maxKeys: config.batchSize);
 
         for (int i = 0; i < batches.length; i++) {
           final batch = batches[i];

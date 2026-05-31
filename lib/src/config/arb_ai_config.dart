@@ -30,6 +30,10 @@ class ArbAiConfig {
   /// Optional instruction for translation tone (e.g. 'formal', 'informal').
   final String? tone;
 
+  /// The maximum number of translation keys sent in a single batch to the provider.
+  /// Defaults to 25.
+  final int batchSize;
+
   const ArbAiConfig({
     required this.provider,
     required this.apiKeyEnv,
@@ -40,6 +44,7 @@ class ArbAiConfig {
     required this.glossary,
     required this.doNotTranslate,
     this.tone,
+    this.batchSize = 25,
   });
 
   /// Creates a default configuration instance.
@@ -52,6 +57,7 @@ class ArbAiConfig {
       targets: [],
       glossary: {},
       doNotTranslate: [],
+      batchSize: 25,
     );
   }
 
@@ -66,6 +72,7 @@ class ArbAiConfig {
     Map<String, Map<String, String>>? glossary,
     List<String>? doNotTranslate,
     String? tone,
+    int? batchSize,
   }) {
     return ArbAiConfig(
       provider: provider ?? this.provider,
@@ -77,6 +84,7 @@ class ArbAiConfig {
       glossary: glossary ?? this.glossary,
       doNotTranslate: doNotTranslate ?? this.doNotTranslate,
       tone: tone ?? this.tone,
+      batchSize: batchSize ?? this.batchSize,
     );
   }
 
@@ -93,7 +101,8 @@ class ArbAiConfig {
           targets.toString() == other.targets.toString() &&
           glossary.toString() == other.glossary.toString() &&
           doNotTranslate.toString() == other.doNotTranslate.toString() &&
-          tone == other.tone;
+          tone == other.tone &&
+          batchSize == other.batchSize;
 
   @override
   int get hashCode =>
@@ -105,5 +114,6 @@ class ArbAiConfig {
       targets.hashCode ^
       glossary.hashCode ^
       doNotTranslate.hashCode ^
-      tone.hashCode;
+      tone.hashCode ^
+      batchSize.hashCode;
 }

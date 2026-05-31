@@ -99,6 +99,16 @@ class ConfigParser {
 
     final tone = doc['tone'] as String?;
 
+    // Validate batch_size
+    final batchSizeVal = doc['batch_size'];
+    var batchSize = defaults.batchSize;
+    if (batchSizeVal != null) {
+      if (batchSizeVal is! int || batchSizeVal <= 0) {
+        throw const FormatException("'batch_size' must be a positive integer.");
+      }
+      batchSize = batchSizeVal;
+    }
+
     return ArbAiConfig(
       provider: provider,
       apiKeyEnv: apiKeyEnv,
@@ -109,6 +119,7 @@ class ConfigParser {
       glossary: glossary,
       doNotTranslate: doNotTranslate,
       tone: tone,
+      batchSize: batchSize,
     );
   }
 

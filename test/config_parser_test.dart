@@ -14,6 +14,7 @@ void main() {
       expect(config.glossary, isEmpty);
       expect(config.doNotTranslate, isEmpty);
       expect(config.tone, isNull);
+      expect(config.batchSize, equals(25));
     });
 
     test('parse() with valid overrides parses correctly', () {
@@ -36,6 +37,7 @@ do_not_translate:
   - Flutter
   - Dart
 tone: formal
+batch_size: 10
 ''';
       final config = ConfigParser.parse(yaml);
       expect(config.provider, equals('openai'));
@@ -50,6 +52,7 @@ tone: formal
       }));
       expect(config.doNotTranslate, equals(['Flutter', 'Dart']));
       expect(config.tone, equals('formal'));
+      expect(config.batchSize, equals(10));
     });
 
     test('parse() throws FormatException on invalid provider', () {
@@ -139,6 +142,21 @@ template-arb-file: my_app_en.arb
     test('parse() falls back to defaults when l10n.yaml is missing', () {
       final config = ConfigParser.parse('provider: gemini');
       expect(config.sourceArb, equals('lib/l10n/app_en.arb'));
+    });
+
+    test('parse() throws FormatException on invalid batch_size format', () {
+      expect(
+        () => ConfigParser.parse('batch_size: -5'),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => ConfigParser.parse('batch_size: hello'),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => ConfigParser.parse('batch_size: 0'),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 }

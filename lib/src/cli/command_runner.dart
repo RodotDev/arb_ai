@@ -21,6 +21,16 @@ class ArbAiCommandRunner {
         negatable: false,
         help: 'CI/CD safety check. Exits with code 1 if translations are missing or outdated, 0 otherwise.',
       )
+      ..addFlag(
+        'force',
+        negatable: false,
+        help: 'Bypasses the translation state cache and forces a full translation of all text keys.',
+      )
+      ..addFlag(
+        'clean',
+        negatable: false,
+        help: 'Deletes the cached translation state file (.arb_ai_state.json) before running.',
+      )
       ..addOption(
         'config',
         abbr: 'c',
@@ -56,6 +66,8 @@ class ArbAiCommandRunner {
 
       final dryRun = results['dry-run'] as bool;
       final check = results['check'] as bool;
+      final force = results['force'] as bool;
+      final clean = results['clean'] as bool;
       final configPath = results['config'] as String;
 
       final configFile = File(configPath);
@@ -72,6 +84,8 @@ class ArbAiCommandRunner {
       final success = await orchestrator.run(
         dryRun: dryRun,
         check: check,
+        force: force,
+        clean: clean,
       );
 
       if (!success) {

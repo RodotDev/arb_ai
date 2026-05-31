@@ -233,19 +233,21 @@ void main() {
       expect(resultPl, {'welcome': 'Witaj!'});
     });
 
-    test('injects contextual metadata and ARB tag preservation instructions into prompt', () async {
+    test('injects contextual metadata into responseSchema and tag preservation into prompt', () async {
       final mockClient = MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
-        // Check if context section and descriptions/placeholder metadata are formatted correctly
-        expect(prompt, contains('Context & Placeholders metadata for each translation key:'));
-        expect(prompt, contains('- "welcome":'));
-        expect(prompt, contains('  - Description: Welcome message shown at homepage'));
-        expect(prompt, contains('  - Placeholder "name": Description: User\'s display name. Example value: John Doe.'));
-        
-        // Check if ARB tag preservation instruction is present
+        // Check if ARB tag preservation instruction is present in prompt
         expect(prompt, contains('Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.'));
+
+        // Check that the metadata is injected directly into responseSchema description
+        final genConfig = body['generationConfig'] as Map<String, dynamic>;
+        final responseSchema = genConfig['responseSchema'] as Map<String, dynamic>;
+        final welcomeSchema = responseSchema['properties']['welcome'] as Map<String, dynamic>;
+        
+        expect(welcomeSchema['description'], contains('Context: Welcome message shown at homepage.'));
+        expect(welcomeSchema['description'], contains('Placeholders info: {name} (desc: User\'s display name, example: John Doe)'));
 
         final mockResponseBody = {
           'candidates': [

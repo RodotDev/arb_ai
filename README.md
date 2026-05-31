@@ -76,6 +76,10 @@ glossary:
 do_not_translate:
   - Flutter
   - Dart
+
+# Maximum translation keys per single API request batch (optional, default: 25)
+# Reduce this if you hit strict API capacity/rate limit boundaries (TPM/RPM)
+batch_size: 25
 ```
 
 ### 3. Expose your API Key
@@ -102,6 +106,12 @@ dart run arb_ai --dry-run
 # Run as a CI safety gate (Exits with 1 if translations are outdated/missing)
 dart run arb_ai --check
 
+# Force a full translation of all text keys, bypassing cache
+dart run arb_ai --force
+
+# Delete the cached translation state file (.arb_ai_state.json) before translating
+dart run arb_ai --clean
+
 # Specify a custom configuration file path
 dart run arb_ai -c config/custom_arb_ai.yaml
 ```
@@ -114,6 +124,8 @@ dart run arb_ai -c config/custom_arb_ai.yaml
 |---|---|---|
 | `--dry-run` | - | Simulates the translation process, listing keys and estimating costs without calling APIs or writing files. |
 | `--check` | - | CI/CD safety check. Exits with code 1 if translations are missing or outdated, 0 otherwise. |
+| `--force` | - | Bypasses the translation state cache and forces a full translation of all text keys. |
+| `--clean` | - | Deletes the cached translation state file (`.arb_ai_state.json`) before running. |
 | `--config` | `-c` | Path to the `arb_ai.yaml` configuration file (defaults to `arb_ai.yaml`). |
 | `--help` | `-h` | Show usage instructions. |
 

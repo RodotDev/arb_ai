@@ -53,38 +53,49 @@ class GeminiProvider implements TranslationProvider {
     promptBuffer.writeln('Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.');
     promptBuffer.writeln('For plurals, ensure you use the correct CLDR plural categories for the target language (e.g., zero, one, two, few, many, other).');
 
-    // Inject contextual descriptions and placeholder examples/descriptions if available
-    final contextBuffer = StringBuffer();
+    // Build schema properties dynamically, injecting key-level descriptions and placeholder metadata directly into the JSON Schema property description for superior contextual focus.
+    final schemaProperties = <String, Map<String, dynamic>>{};
+    final requiredKeys = <String>[];
+
     for (final key in strings.keys) {
       final desc = descriptions?[key];
       final keyPlaceholders = placeholders?[key];
 
-      if ((desc != null && desc.isNotEmpty) || (keyPlaceholders != null && keyPlaceholders.isNotEmpty)) {
-        contextBuffer.writeln('- "$key":');
-        if (desc != null && desc.isNotEmpty) {
-          contextBuffer.writeln('  - Description: $desc');
-        }
-        if (keyPlaceholders != null && keyPlaceholders.isNotEmpty) {
-          keyPlaceholders.forEach((phName, phMetadata) {
-            if (phMetadata is Map<String, dynamic>) {
-              final phDesc = phMetadata['description'];
-              final phExample = phMetadata['example'];
-              if (phDesc != null || phExample != null) {
-                contextBuffer.write('  - Placeholder "$phName":');
-                if (phDesc != null) contextBuffer.write(' Description: $phDesc.');
-                if (phExample != null) contextBuffer.write(' Example value: $phExample.');
-                contextBuffer.writeln();
-              }
-            }
-          });
-        }
+      final schemaDescBuffer = StringBuffer();
+      if (desc != null && desc.isNotEmpty) {
+        schemaDescBuffer.write('Context: $desc.');
       }
+      if (keyPlaceholders != null && keyPlaceholders.isNotEmpty) {
+        if (schemaDescBuffer.isNotEmpty) schemaDescBuffer.write(' ');
+        schemaDescBuffer.write('Placeholders info:');
+        keyPlaceholders.forEach((phName, phMetadata) {
+          if (phMetadata is Map<String, dynamic>) {
+            final phDesc = phMetadata['description'];
+            final phExample = phMetadata['example'];
+            schemaDescBuffer.write(' {$phName}');
+            if (phDesc != null || phExample != null) {
+              schemaDescBuffer.write(' (');
+              if (phDesc != null) schemaDescBuffer.write('desc: $phDesc');
+              if (phExample != null) schemaDescBuffer.write('${phDesc != null ? ", " : ""}example: $phExample');
+              schemaDescBuffer.write(')');
+            }
+            schemaDescBuffer.write(';');
+          }
+        });
+      }
+
+      schemaProperties[key] = {
+        'type': 'STRING',
+        if (schemaDescBuffer.isNotEmpty) 'description': schemaDescBuffer.toString().trim(),
+      };
+      requiredKeys.add(key);
     }
 
-    if (contextBuffer.isNotEmpty) {
-      promptBuffer.writeln('\nContext & Placeholders metadata for each translation key:');
-      promptBuffer.write(contextBuffer.toString());
-    }
+    final responseSchema = {
+      'type': 'OBJECT',
+      'properties': schemaProperties,
+      'required': requiredKeys,
+    };
 
     if (config.tone != null && config.tone!.isNotEmpty) {
       promptBuffer.writeln('Use a ${config.tone} tone for the translation.');
@@ -128,20 +139,6 @@ class GeminiProvider implements TranslationProvider {
 
     promptBuffer.writeln('\nSource strings (JSON):');
     promptBuffer.writeln(jsonEncode(strings));
-
-    // Dynamically build responseSchema to force Gemini to output exactly the same keys
-    final schemaProperties = <String, Map<String, String>>{};
-    final requiredKeys = <String>[];
-    for (final key in strings.keys) {
-      schemaProperties[key] = {'type': 'STRING'};
-      requiredKeys.add(key);
-    }
-
-    final responseSchema = {
-      'type': 'OBJECT',
-      'properties': schemaProperties,
-      'required': requiredKeys,
-    };
 
     final requestBody = {
       'contents': [

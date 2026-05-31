@@ -50,6 +50,14 @@ class ArbStateManager {
     stateFile.writeAsStringSync('$jsonString\n');
   }
 
+  /// Deletes the state file from disk and clears the in-memory state.
+  void clean() {
+    if (stateFile.existsSync()) {
+      stateFile.deleteSync();
+    }
+    _state.clear();
+  }
+
   /// Computes the MD5 hash of a source string.
   String computeHash(String val) {
     return md5.convert(utf8.encode(val)).toString();
