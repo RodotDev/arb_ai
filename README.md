@@ -153,6 +153,13 @@ void main() async {
 
 ---
 
+## Next Steps (Roadmap)
+
+- **Anthropic Claude Provider**: Native support for Claude models via the Anthropic REST API.
+- **OpenAI ChatGPT Provider**: Native support for GPT models via the OpenAI REST API.
+
+---
+
 ## License
 
 This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
