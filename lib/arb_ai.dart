@@ -12,3 +12,5 @@ export 'src/arb/arb_writer.dart';
 export 'src/ai/translation_provider.dart';
 export 'src/ai/translation_batcher.dart';
 export 'src/ai/gemini_provider.dart';
+export 'src/orchestrator.dart';
+export 'src/cli/logger.dart';

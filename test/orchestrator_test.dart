@@ -1,0 +1,275 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:arb_ai/arb_ai.dart';
+import 'package:test/test.dart';
+
+class MockTranslationProvider implements TranslationProvider {
+  final Future<Map<String, String>> Function(
+    Map<String, String> strings,
+    String targetLanguage,
+    ArbAiConfig config,
+  ) onTranslate;
+
+  MockTranslationProvider(this.onTranslate);
+
+  @override
+  Future<Map<String, String>> translate({
+    required Map<String, String> strings,
+    required String targetLanguage,
+    required ArbAiConfig config,
+  }) {
+    return onTranslate(strings, targetLanguage, config);
+  }
+}
+
+/// A silent logger to avoid cluttering test outputs.
+class SilentLogger extends Logger {
+  const SilentLogger() : super();
+
+  @override
+  void info(String message) {}
+  @override
+  void success(String message) {}
+  @override
+  void warning(String message) {}
+  @override
+  void error(String message) {}
+  @override
+  void debug(String message) {}
+}
+
+void main() {
+  group('ArbAiOrchestrator Path Resolution', () {
+    final orchestrator = ArbAiOrchestrator(
+      config: ArbAiConfig.defaults(),
+      logger: const SilentLogger(),
+    );
+
+    test('getTargetFile resolves standard _en source to target', () {
+      final file = orchestrator.getTargetFile('/path/to/app_en.arb', 'pt', 'en');
+      expect(file.path, equals('/path/to/app_pt.arb'));
+    });
+
+    test('getTargetFile resolves source with different underscore locale structure', () {
+      final file = orchestrator.getTargetFile('/path/to/intl_en_US.arb', 'pt', 'en_US');
+      expect(file.path, equals('/path/to/intl_pt.arb'));
+    });
+
+    test('getTargetFile falls back if source lacks matching locale suffix', () {
+      // app.arb with target 'pt' becomes app_pt.arb
+      final file = orchestrator.getTargetFile('/path/to/app.arb', 'pt', 'en');
+      expect(file.path, equals('/path/to/app_pt.arb'));
+    });
+  });
+
+  group('ArbAiOrchestrator Pipeline execution', () {
+    late Directory tempDir;
+    late File sourceFile;
+    late File stateFile;
+    late ArbAiConfig testConfig;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('orchestrator_test');
+      sourceFile = File('${tempDir.path}/app_en.arb');
+      stateFile = File('${tempDir.path}/.arb_ai_state.json');
+
+      sourceFile.writeAsStringSync(jsonEncode({
+        '@@locale': 'en',
+        'welcome': 'Welcome, {name}!',
+        '@welcome': {
+          'description': 'Welcome message',
+          'placeholders': {
+            'name': {'type': 'String'}
+          }
+        },
+        'inbox': '{count, plural, =0{No messages} other{{count} messages}}',
+      }));
+
+      testConfig = ArbAiConfig(
+        provider: 'gemini',
+        apiKeyEnv: 'MOCK_API_KEY',
+        model: 'gemini-3.5-flash',
+        sourceArb: sourceFile.path,
+        targets: ['pt'],
+        glossary: {},
+        doNotTranslate: [],
+      );
+    });
+
+    tearDown(() {
+      tempDir.deleteSync(recursive: true);
+    });
+
+    test('succeeds immediately and does not translate when targets is empty', () async {
+      final configWithNoTargets = testConfig.copyWith(targets: []);
+      final orchestrator = ArbAiOrchestrator(
+        config: configWithNoTargets,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run();
+      expect(success, isTrue);
+    });
+
+    test('performs dry-run without hitting provider or writing files', () async {
+      var providerCalled = false;
+      final provider = MockTranslationProvider((strings, targetLanguage, config) async {
+        providerCalled = true;
+        return {};
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run(dryRun: true);
+      expect(success, isTrue);
+      expect(providerCalled, isFalse);
+
+      final targetFile = orchestrator.getTargetFile(sourceFile.path, 'pt', 'en');
+      expect(targetFile.existsSync(), isFalse);
+    });
+
+    test('check mode returns false when translations are missing or outdated', () async {
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run(check: true);
+      expect(success, isFalse); // translations are missing
+    });
+
+    test('check mode returns true when all translations are fully in sync', () async {
+      final targetFile = File('${tempDir.path}/app_pt.arb');
+      targetFile.writeAsStringSync(jsonEncode({
+        '@@locale': 'pt',
+        'welcome': 'Bem-vindo, {name}!',
+        'inbox': '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+      }));
+
+      // Establish correct hash in state manager
+      final stateManager = ArbStateManager(stateFile);
+      stateManager.updateState(
+        targetLanguage: 'pt',
+        key: 'welcome',
+        sourceValue: 'Welcome, {name}!',
+      );
+      stateManager.updateState(
+        targetLanguage: 'pt',
+        key: 'inbox',
+        sourceValue: '{count, plural, =0{No messages} other{{count} messages}}',
+      );
+      stateManager.save();
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run(check: true);
+      expect(success, isTrue);
+    });
+
+    test('successfully translates, validates ICU, and writes deterministic output', () async {
+      final provider = MockTranslationProvider((strings, targetLanguage, config) async {
+        expect(targetLanguage, equals('pt'));
+        expect(strings, contains('welcome'));
+        expect(strings, contains('inbox'));
+
+        return {
+          'welcome': 'Bem-vindo, {name}!',
+          'inbox': '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+        };
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run();
+      expect(success, isTrue);
+
+      final targetFile = File('${tempDir.path}/app_pt.arb');
+      expect(targetFile.existsSync(), isTrue);
+
+      final targetContent = targetFile.readAsStringSync();
+      final targetJson = jsonDecode(targetContent) as Map<String, dynamic>;
+
+      expect(targetJson['@@locale'], equals('pt'));
+      expect(targetJson['welcome'], equals('Bem-vindo, {name}!'));
+      expect(targetJson['inbox'], equals('{count, plural, =0{Sem mensagens} other{{count} mensagens}}'));
+      // Determinism test: should have no @welcome metadata
+      expect(targetJson.containsKey('@welcome'), isFalse);
+
+      // Verify state manager updated state
+      final manager = ArbStateManager(stateFile);
+      expect(
+        manager.isUpToDate(
+          targetLanguage: 'pt',
+          key: 'welcome',
+          sourceValue: 'Welcome, {name}!',
+          targetArb: ArbFile.parse(targetContent),
+        ),
+        isTrue,
+      );
+    });
+
+    test('retries on validation failure and succeeds if subsequent attempt is valid', () async {
+      var callCount = 0;
+      final provider = MockTranslationProvider((strings, targetLanguage, config) async {
+        callCount++;
+        if (callCount == 1) {
+          // Return a translation missing placeholder {name}
+          return {
+            'welcome': 'Bem-vindo!',
+            'inbox': '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+          };
+        }
+        // Succeed on subsequent call
+        return {
+          'welcome': 'Bem-vindo, {name}!',
+        };
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run();
+      expect(success, isTrue);
+      expect(callCount, 2);
+
+      final targetFile = File('${tempDir.path}/app_pt.arb');
+      final targetJson = jsonDecode(targetFile.readAsStringSync()) as Map<String, dynamic>;
+      expect(targetJson['welcome'], equals('Bem-vindo, {name}!'));
+    });
+
+    test('throws FormatException if ICU validation keeps failing after maximum retries', () async {
+      var callCount = 0;
+      final provider = MockTranslationProvider((strings, targetLanguage, config) async {
+        callCount++;
+        return {
+          'welcome': 'Bem-vindo!', // missing {name}
+          'inbox': '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+        };
+      });
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      final success = await orchestrator.run();
+      expect(success, isFalse);
+      expect(callCount, 3); // maxRetries = 3
+    });
+  });
+}

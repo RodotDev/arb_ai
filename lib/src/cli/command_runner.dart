@@ -1,6 +1,9 @@
 // ignore_for_file: avoid_print
 import 'dart:io';
 import 'package:args/args.dart';
+import '../config/config_parser.dart';
+import '../orchestrator.dart';
+import 'logger.dart';
 
 /// Command runner for parsing and executing the `arb_ai` CLI logic.
 class ArbAiCommandRunner {
@@ -41,8 +44,8 @@ class ArbAiCommandRunner {
   }
 
   /// Entrypoint method to parse arguments and execute the workflow.
-  /// In Phase 1, it will print parsed options and help.
   Future<void> run(List<String> args) async {
+    const logger = Logger();
     try {
       final results = parser.parse(args);
 
@@ -55,14 +58,32 @@ class ArbAiCommandRunner {
       final check = results['check'] as bool;
       final configPath = results['config'] as String;
 
-      print('Parsed CLI flags:');
-      print('  --dry-run: $dryRun');
-      print('  --check: $check');
-      print('  --config: $configPath');
+      final configFile = File(configPath);
+      if (!configFile.existsSync()) {
+        logger.warning('Configuration file not found at "$configPath". Using default configuration.');
+      }
+
+      final config = ConfigParser.parseFile(configFile);
+      final orchestrator = ArbAiOrchestrator(
+        config: config,
+        logger: logger,
+      );
+
+      final success = await orchestrator.run(
+        dryRun: dryRun,
+        check: check,
+      );
+
+      if (!success) {
+        exit(1);
+      }
     } on FormatException catch (e) {
-      print('Error parsing arguments: ${e.message}\n');
+      logger.error('Error parsing arguments: ${e.message}\n');
       printUsage();
       exit(64); // Exit code 64 is standard for command line usage error.
+    } catch (e) {
+      logger.error('Unhandled error: $e');
+      exit(1);
     }
   }
 }
