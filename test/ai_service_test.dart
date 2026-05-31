@@ -410,5 +410,83 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('expands regional targetLanguage code into human-friendly name in prompt', () async {
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+        
+        expect(prompt, contains('"pt_BR" (Brazilian Portuguese)'));
+
+        final mockResponseBody = {
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({'welcome': 'Bem-vindo!'})
+                  }
+                ]
+              }
+            }
+          ]
+        };
+        return http.Response(jsonEncode(mockResponseBody), 200);
+      });
+
+      final provider = GeminiProvider(httpClient: mockClient);
+      await provider.translate(
+        strings: {'welcome': 'Welcome!'},
+        targetLanguage: 'pt_BR',
+        config: config,
+      );
+    });
+
+    test('performs smart glossary lookup with targetLanguage region and base fallbacks', () async {
+      final customConfig = config.copyWith(
+        glossary: {
+          'pt': {'hello': 'olá_base'},
+          'pt-br': {'hello': 'olá_regional'},
+        },
+      );
+
+      // 1. Should use regional exact match (pt_BR matching pt-br)
+      final mockClientRegional = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+        expect(prompt, contains('olá_regional'));
+        expect(prompt, isNot(contains('olá_base')));
+
+        return http.Response(jsonEncode({
+          'candidates': [{'content': {'parts': [{'text': jsonEncode({'hello': 'olá_regional'})}]}}]
+        }), 200);
+      });
+
+      final providerRegional = GeminiProvider(httpClient: mockClientRegional);
+      await providerRegional.translate(
+        strings: {'hello': 'hello'},
+        targetLanguage: 'pt_BR',
+        config: customConfig,
+      );
+
+      // 2. Should use base fallback when regional matches nothing (e.g. pt_PT matching pt)
+      final mockClientFallback = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+        expect(prompt, contains('olá_base'));
+        expect(prompt, isNot(contains('olá_regional')));
+
+        return http.Response(jsonEncode({
+          'candidates': [{'content': {'parts': [{'text': jsonEncode({'hello': 'olá_base'})}]}}]
+        }), 200);
+      });
+
+      final providerFallback = GeminiProvider(httpClient: mockClientFallback);
+      await providerFallback.translate(
+        strings: {'hello': 'hello'},
+        targetLanguage: 'pt_PT',
+        config: customConfig,
+      );
+    });
   });
 }

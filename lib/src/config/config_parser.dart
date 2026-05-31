@@ -8,7 +8,9 @@ class ConfigParser {
   static ArbAiConfig parse(String yamlContent) {
     final doc = loadYaml(yamlContent);
     if (doc == null) {
-      return ArbAiConfig.defaults();
+      return ArbAiConfig.defaults().copyWith(
+        sourceArb: _inferSourceArbFromL10nYaml(),
+      );
     }
 
     if (doc is! YamlMap) {
@@ -16,6 +18,7 @@ class ConfigParser {
     }
 
     final defaults = ArbAiConfig.defaults();
+    final defaultSourceArb = _inferSourceArbFromL10nYaml();
 
     final provider = doc['provider'] as String? ?? defaults.provider;
     if (provider != 'gemini' && provider != 'openai') {
@@ -27,7 +30,7 @@ class ConfigParser {
     final apiKeyEnv = doc['api_key_env'] as String? ?? defaults.apiKeyEnv;
     final model = doc['model'] as String? ?? defaults.model;
     final baseUrl = doc['base_url'] as String?;
-    final sourceArb = doc['source_arb'] as String? ?? defaults.sourceArb;
+    final sourceArb = doc['source_arb'] as String? ?? defaultSourceArb;
 
     // Validate targets
     final targetsVal = doc['targets'];
@@ -126,5 +129,25 @@ class ConfigParser {
   /// Parses configuration from a file path.
   static ArbAiConfig parsePath(String path) {
     return parseFile(File(path));
+  }
+
+  static String _inferSourceArbFromL10nYaml() {
+    final l10nFile = File('l10n.yaml');
+    if (l10nFile.existsSync()) {
+      try {
+        final content = l10nFile.readAsStringSync();
+        final doc = loadYaml(content);
+        if (doc is YamlMap) {
+          final arbDir = doc['arb-dir'] as String? ?? 'lib/l10n';
+          final templateArbFile = doc['template-arb-file'] as String? ?? 'app_en.arb';
+          final cleanArbDir = arbDir.endsWith('/') ? arbDir.substring(0, arbDir.length - 1) : arbDir;
+          final cleanTemplate = templateArbFile.startsWith('/') ? templateArbFile.substring(1) : templateArbFile;
+          return '$cleanArbDir/$cleanTemplate';
+        }
+      } catch (_) {
+        // Fallback silently if parsing error
+      }
+    }
+    return 'lib/l10n/app_en.arb';
   }
 }

@@ -45,10 +45,11 @@ api_key_env: ARB_AI_API_KEY
 # The model to use (default: gemini-3.5-flash)
 model: gemini-3.5-flash
 
-# Source ARB template
+# Source ARB template (optional)
+# If omitted, arb_ai dynamically infers it from your Flutter `l10n.yaml` file (combining `arb-dir` and `template-arb-file`). Falls back to 'lib/l10n/app_en.arb'.
 source_arb: lib/l10n/app_en.arb
 
-# Target language codes to translate into
+# Target language codes to translate into (supports regional codes like pt_BR, es_419)
 targets:
   - pt
   - es
@@ -58,7 +59,8 @@ targets:
 # Tone configuration (optional)
 tone: formal
 
-# Glossary to force specific target-language translations (optional)
+# Glossary to force specific target-language translations (optional).
+# Supports smart regional fallbacks (e.g. if translating into 'pt_BR', the engine will fall back to using 'pt' glossary rules if no exact regional match is configured).
 glossary:
   pt:
     hello: oi

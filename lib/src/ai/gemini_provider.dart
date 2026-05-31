@@ -42,7 +42,12 @@ class GeminiProvider implements TranslationProvider {
 
     // Build the detailed prompt enforcing ICU preservation, glossary, tone, and exclusions
     final promptBuffer = StringBuffer();
-    promptBuffer.writeln('Translate the following application strings into the target language code "$targetLanguage".');
+    final expandedLang = _expandLanguageName(targetLanguage);
+    final promptLangStr = expandedLang.toLowerCase() == targetLanguage.toLowerCase()
+        ? '"$targetLanguage"'
+        : '"$targetLanguage" ($expandedLang)';
+
+    promptBuffer.writeln('Translate the following application strings into the target language code $promptLangStr.');
     promptBuffer.writeln('Preserve all ICU syntax strictly (plurals, genders, selects).');
     promptBuffer.writeln('Do not translate placeholder names inside curly braces like {name}.');
     promptBuffer.writeln('Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.');
@@ -92,7 +97,28 @@ class GeminiProvider implements TranslationProvider {
       }
     }
 
-    final langGlossary = config.glossary[targetLanguage];
+    // Smart glossary fallback lookup
+    Map<String, String>? langGlossary;
+    final normalizedTarget = targetLanguage.replaceAll('_', '-').toLowerCase();
+    for (final entry in config.glossary.entries) {
+      final key = entry.key.replaceAll('_', '-').toLowerCase();
+      if (key == normalizedTarget) {
+        langGlossary = entry.value;
+        break;
+      }
+    }
+    // Base language fallback (e.g. if target is pt-BR, try lookup for pt)
+    if (langGlossary == null) {
+      final baseTarget = targetLanguage.split(RegExp('[_-]'))[0].toLowerCase();
+      for (final entry in config.glossary.entries) {
+        final key = entry.key.replaceAll('_', '-').toLowerCase();
+        if (key == baseTarget) {
+          langGlossary = entry.value;
+          break;
+        }
+      }
+    }
+
     if (langGlossary != null && langGlossary.isNotEmpty) {
       promptBuffer.writeln('Strictly apply the following glossary mappings if the term/concept matches:');
       langGlossary.forEach((key, value) {
@@ -257,5 +283,57 @@ class GeminiProvider implements TranslationProvider {
     }
 
     return null;
+  }
+
+  /// Expands language codes (especially regional ones like pt_BR or es_419) into human-friendly names.
+  static String _expandLanguageName(String langCode) {
+    final normalized = langCode.replaceAll('_', '-').toLowerCase();
+    switch (normalized) {
+      case 'pt':
+        return 'Portuguese';
+      case 'pt-br':
+        return 'Brazilian Portuguese';
+      case 'es':
+        return 'Spanish';
+      case 'es-419':
+        return 'Latin American Spanish';
+      case 'zh':
+        return 'Chinese';
+      case 'zh-hans':
+        return 'Simplified Chinese';
+      case 'zh-hant':
+        return 'Traditional Chinese';
+      case 'en':
+        return 'English';
+      case 'en-us':
+        return 'American English';
+      case 'en-gb':
+        return 'British English';
+      case 'fr':
+        return 'French';
+      case 'de':
+        return 'German';
+      case 'it':
+        return 'Italian';
+      case 'ja':
+        return 'Japanese';
+      case 'ko':
+        return 'Korean';
+      case 'ru':
+        return 'Russian';
+      case 'pl':
+        return 'Polish';
+      case 'ar':
+        return 'Arabic';
+      default:
+        final parts = normalized.split('-');
+        if (parts.length > 1) {
+          final base = parts[0];
+          final region = parts[1].toUpperCase();
+          final baseName = _expandLanguageName(base);
+          return '$baseName (Region: $region)';
+        }
+        return langCode;
+    }
   }
 }

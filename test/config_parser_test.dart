@@ -119,5 +119,26 @@ glossary:
       final config = ConfigParser.parseFile(File('does_not_exist.yaml'));
       expect(config.provider, equals('gemini'));
     });
+
+    test('parse() infers sourceArb from l10n.yaml if omitted', () {
+      final l10nFile = File('l10n.yaml');
+      l10nFile.writeAsStringSync('''
+arb-dir: src/localization
+template-arb-file: my_app_en.arb
+''');
+      try {
+        final config = ConfigParser.parse('provider: gemini');
+        expect(config.sourceArb, equals('src/localization/my_app_en.arb'));
+      } finally {
+        if (l10nFile.existsSync()) {
+          l10nFile.deleteSync();
+        }
+      }
+    });
+
+    test('parse() falls back to defaults when l10n.yaml is missing', () {
+      final config = ConfigParser.parse('provider: gemini');
+      expect(config.sourceArb, equals('lib/l10n/app_en.arb'));
+    });
   });
 }
