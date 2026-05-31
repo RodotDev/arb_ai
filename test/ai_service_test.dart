@@ -256,17 +256,21 @@ void main() {
     });
 
     test(
-      'injects contextual metadata into responseSchema and tag preservation into prompt',
+      'injects contextual metadata into responseSchema and ICU preservation into prompt',
       () async {
         final mockClient = MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
-          // Check if ARB tag preservation instruction is present in prompt
+          // Check that placeholder and ICU preservation instructions are present
+          expect(
+            prompt,
+            contains('Never translate placeholder or variable names.'),
+          );
           expect(
             prompt,
             contains(
-              'Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.',
+              'For plural and select expressions, translate ONLY the human-readable',
             ),
           );
 

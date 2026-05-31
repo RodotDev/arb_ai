@@ -114,7 +114,12 @@ class IcuParser {
 
     while (_pos < input.length) {
       final char = input[_pos];
-      if (char == '{') {
+      if (char == "'") {
+        // Apostrophes are the ICU MessageFormat quoting character and must be
+        // resolved before brace handling so that escaped/quoted braces are not
+        // mistaken for placeholders.
+        _consumeQuote(sb);
+      } else if (char == '{') {
         if (sb.isNotEmpty) {
           nodes.add(LiteralNode(sb.toString()));
           sb.clear();
@@ -132,6 +137,64 @@ class IcuParser {
       nodes.add(LiteralNode(sb.toString()));
     }
     return nodes;
+  }
+
+  /// Resolves an apostrophe at the current position following ICU
+  /// MessageFormat quoting rules (the default `DOUBLE_OPTIONAL` mode used by
+  /// Flutter `gen_l10n`/`intl`) and appends the resulting literal text to [sb].
+  ///
+  /// Rules:
+  /// - `''` is an escaped literal apostrophe.
+  /// - A lone apostrophe only *starts* a quoted span when immediately followed
+  ///   by a syntax character (`{`, `}`, `#`, `|`); inside that span those
+  ///   characters lose their special meaning until the closing apostrophe.
+  /// - Otherwise the apostrophe is treated as a literal character (so ordinary
+  ///   apostrophes, e.g. French `l'utilisateur`, are left untouched).
+  void _consumeQuote(StringBuffer sb) {
+    // Precondition: input[_pos] == "'".
+    _pos++; // Consume the opening apostrophe.
+
+    if (_pos >= input.length) {
+      sb.write("'"); // A trailing lone apostrophe is a literal.
+      return;
+    }
+
+    // "''" collapses to a single literal apostrophe.
+    if (input[_pos] == "'") {
+      sb.write("'");
+      _pos++;
+      return;
+    }
+
+    // A lone apostrophe is literal unless it escapes a syntax character.
+    if (!_isQuotableSyntax(input[_pos])) {
+      sb.write("'");
+      return;
+    }
+
+    // Quoted span: copy characters literally until the closing apostrophe.
+    while (_pos < input.length) {
+      final char = input[_pos];
+      if (char == "'") {
+        // A doubled apostrophe inside the span is an escaped literal
+        // apostrophe and the span continues.
+        if (_pos + 1 < input.length && input[_pos + 1] == "'") {
+          sb.write("'");
+          _pos += 2;
+          continue;
+        }
+        _pos++; // Consume the closing apostrophe.
+        return;
+      }
+      sb.write(char);
+      _pos++;
+    }
+    // ICU is lenient: an unterminated quote simply runs to the end of input.
+  }
+
+  /// Whether [char] is an ICU syntax character that an apostrophe can escape.
+  bool _isQuotableSyntax(String char) {
+    return char == '{' || char == '}' || char == '#' || char == '|';
   }
 
   IcuNode _parseBraceExpression() {

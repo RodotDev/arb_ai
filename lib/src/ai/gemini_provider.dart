@@ -57,19 +57,39 @@ class GeminiProvider implements TranslationProvider {
         : '"$targetLanguage" ($expandedLang)';
 
     promptBuffer.writeln(
-      'Translate the following application strings into the target language code $promptLangStr.',
+      'Translate the values of the following application strings into the target '
+      'language code $promptLangStr. Write natural, idiomatic UI text (never '
+      'word-for-word) and keep terminology consistent across all keys.',
+    );
+    promptBuffer.writeln('ICU MessageFormat & placeholder rules:');
+    promptBuffer.writeln(
+      '- Preserve every placeholder exactly, including its type and format '
+      'options (e.g. {name}, {count}, {price, number, currency}, {date, date, '
+      'short}). Never translate placeholder or variable names.',
     );
     promptBuffer.writeln(
-      'Preserve all ICU syntax strictly (plurals, genders, selects).',
+      '- For plural and select expressions, translate ONLY the human-readable '
+      'text inside each branch. Keep the selector variable, the category '
+      'keywords (zero, one, two, few, many, other, =0, =1, male, female, ...) '
+      'and the # symbol unchanged.',
     );
     promptBuffer.writeln(
-      'Do not translate placeholder names inside curly braces like {name}.',
+      '- For plurals, use exactly the CLDR plural categories required by the '
+      'target language — no more, no less — always including "other".',
     );
     promptBuffer.writeln(
-      'Do not translate or alter special ARB tag placeholders starting with \'@\' inside curly braces, such as {@<b>} or {@</b>}.',
+      "- If a message contains any {...} expression, escape every literal "
+      "apostrophe/single quote by doubling it (' becomes '') per ICU "
+      'MessageFormat rules. Leave apostrophes untouched in plain messages '
+      'without any {...} expression.',
     );
     promptBuffer.writeln(
-      'For plurals, ensure you use the correct CLDR plural categories for the target language (e.g., zero, one, two, few, many, other).',
+      '- Preserve leading and trailing whitespace and line breaks (\\n) exactly '
+      'as in the source.',
+    );
+    promptBuffer.writeln(
+      '- Use locale-appropriate punctuation and typography (quotation marks, '
+      'spacing) without altering any placeholder or ICU syntax.',
     );
 
     // Build schema properties dynamically, injecting key-level descriptions and placeholder metadata directly into the JSON Schema property description for superior contextual focus.
@@ -180,7 +200,7 @@ class GeminiProvider implements TranslationProvider {
         'parts': [
           {
             'text':
-                'You are an expert software localizer. You strictly translate user-provided JSON strings while mathematically preserving ICU syntax, placeholders, and returning a flat JSON object with the exact same keys.',
+                'You are an expert software localizer specialized in Flutter/Dart ARB and ICU MessageFormat. You strictly translate user-provided JSON values while preserving ICU syntax and placeholders, and you return a flat JSON object containing exactly the same keys as the input — no keys added, removed, or renamed, and no commentary.',
           },
         ],
       },
