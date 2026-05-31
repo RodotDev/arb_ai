@@ -1,0 +1,290 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:test/test.dart';
+import 'package:arb_ai/arb_ai.dart';
+
+void main() {
+  group('TranslationBatcher', () {
+    test('chunks empty map to empty list', () {
+      final result = TranslationBatcher.chunk({});
+      expect(result, isEmpty);
+    });
+
+    test('chunks correctly according to maxKeys', () {
+      final input = {
+        'k1': 'v1',
+        'k2': 'v2',
+        'k3': 'v3',
+        'k4': 'v4',
+        'k5': 'v5',
+      };
+
+      final chunked = TranslationBatcher.chunk(input, maxKeys: 2);
+      expect(chunked, hasLength(3));
+      expect(chunked[0], {'k1': 'v1', 'k2': 'v2'});
+      expect(chunked[1], {'k3': 'v3', 'k4': 'v4'});
+      expect(chunked[2], {'k5': 'v5'});
+    });
+
+    test('throws ArgumentError on invalid maxKeys', () {
+      expect(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: 0),
+          throwsArgumentError);
+      expect(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: -1),
+          throwsArgumentError);
+    });
+  });
+
+  group('GeminiProvider', () {
+    late String? originalEnvContent;
+    final envFile = File('.env');
+
+    setUpAll(() {
+      if (envFile.existsSync()) {
+        originalEnvContent = envFile.readAsStringSync();
+      } else {
+        originalEnvContent = null;
+      }
+      // Write a standard mock .env for tests
+      envFile.writeAsStringSync('TEST_GEMINI_API_KEY=mock-api-key\n');
+    });
+
+    tearDownAll(() {
+      if (originalEnvContent != null) {
+        envFile.writeAsStringSync(originalEnvContent!);
+      } else {
+        if (envFile.existsSync()) {
+          envFile.deleteSync();
+        }
+      }
+    });
+
+    const config = ArbAiConfig(
+      provider: 'gemini',
+      apiKeyEnv: 'TEST_GEMINI_API_KEY',
+      model: 'gemini-3.5-flash',
+      sourceArb: 'lib/l10n/app_en.arb',
+      targets: ['pt'],
+      glossary: {'hello': 'olá'},
+      doNotTranslate: ['Flutter'],
+      tone: 'formal',
+    );
+
+    test('returns empty map on empty strings input without api call', () async {
+      var callCount = 0;
+      final mockClient = MockClient((request) async {
+        callCount++;
+        return http.Response('', 200);
+      });
+
+      final provider = GeminiProvider(httpClient: mockClient);
+      final result = await provider.translate(
+        strings: {},
+        targetLanguage: 'pt',
+        config: config,
+      );
+
+      expect(result, isEmpty);
+      expect(callCount, 0);
+    });
+
+    test('throws StateError when api key environment variable is not present', () async {
+      final mockClient = MockClient((request) async => http.Response('', 200));
+      final provider = GeminiProvider(httpClient: mockClient);
+
+      await expectLater(
+        provider.translate(
+          strings: {'key': 'value'},
+          targetLanguage: 'pt',
+          config: config.copyWith(apiKeyEnv: 'NON_EXISTENT_KEY_123'),
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('performs successful translation with correct payload structure', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.url.scheme, 'https');
+        expect(request.url.host, 'generativelanguage.googleapis.com');
+        expect(request.url.path, '/v1beta/models/gemini-3.5-flash:generateContent');
+        expect(request.url.queryParameters['key'], 'mock-api-key');
+        expect(request.headers['Content-Type'], 'application/json');
+
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body, contains('contents'));
+        expect(body, contains('systemInstruction'));
+        expect(body, contains('generationConfig'));
+        expect(body, contains('safetySettings'));
+
+        // Check prompt contains glossary, tone, and doNotTranslate instructions
+        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+        expect(prompt, contains('pt'));
+        expect(prompt, contains('formal'));
+        expect(prompt, contains('Flutter'));
+        expect(prompt, contains('hello'));
+        expect(prompt, contains('olá'));
+
+        // Check responseSchema is configured correctly
+        final genConfig = body['generationConfig'] as Map<String, dynamic>;
+        expect(genConfig['responseMimeType'], 'application/json');
+        final responseSchema = genConfig['responseSchema'] as Map<String, dynamic>;
+        expect(responseSchema['type'], 'OBJECT');
+        expect(responseSchema['required'], contains('welcome'));
+        expect(responseSchema['properties']['welcome']['type'], 'STRING');
+
+        final mockResponseBody = {
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({'welcome': 'Bem-vindo!'})
+                  }
+                ]
+              }
+            }
+          ]
+        };
+
+        return http.Response(jsonEncode(mockResponseBody), 200);
+      });
+
+      final provider = GeminiProvider(httpClient: mockClient);
+      final result = await provider.translate(
+        strings: {'welcome': 'Welcome!'},
+        targetLanguage: 'pt',
+        config: config,
+      );
+
+      expect(result, {'welcome': 'Bem-vindo!'});
+    });
+
+    test('implements exponential backoff on 429 rate limit error', () async {
+      var callCount = 0;
+      final mockClient = MockClient((request) async {
+        callCount++;
+        if (callCount == 1) {
+          return http.Response('Rate limit exceeded', 429);
+        }
+        final mockResponseBody = {
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({'key': 'value_pt'})
+                  }
+                ]
+              }
+            }
+          ]
+        };
+        return http.Response(jsonEncode(mockResponseBody), 200);
+      });
+
+      final recordedDelays = <Duration>[];
+      final provider = GeminiProvider(
+        httpClient: mockClient,
+        delay: (duration) async {
+          recordedDelays.add(duration);
+        },
+      );
+
+      final result = await provider.translate(
+        strings: {'key': 'value'},
+        targetLanguage: 'pt',
+        config: config,
+      );
+
+      expect(result, {'key': 'value_pt'});
+      expect(callCount, 2);
+      expect(recordedDelays, hasLength(1));
+      expect(recordedDelays[0].inSeconds, 2); // 1 << 1
+    });
+
+    test('throws HttpException after maximum 429 retries', () async {
+      var callCount = 0;
+      final mockClient = MockClient((request) async {
+        callCount++;
+        return http.Response('Rate limit exceeded', 429);
+      });
+
+      final recordedDelays = <Duration>[];
+      final provider = GeminiProvider(
+        httpClient: mockClient,
+        delay: (duration) async {
+          recordedDelays.add(duration);
+        },
+      );
+
+      await expectLater(
+        provider.translate(
+          strings: {'key': 'value'},
+          targetLanguage: 'pt',
+          config: config,
+        ),
+        throwsA(isA<HttpException>().having(
+          (e) => e.message,
+          'message',
+          contains('Failed after 5 retries with status 429'),
+        )),
+      );
+
+      expect(callCount, 5);
+      expect(recordedDelays, hasLength(4)); // delays after attempts 1, 2, 3, 4
+      expect(recordedDelays.map((d) => d.inSeconds), [2, 4, 8, 16]);
+    });
+
+    test('throws HttpException on non-200 / non-429 server errors', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response('Internal Server Error', 500);
+      });
+
+      final provider = GeminiProvider(httpClient: mockClient);
+
+      await expectLater(
+        provider.translate(
+          strings: {'key': 'value'},
+          targetLanguage: 'pt',
+          config: config,
+        ),
+        throwsA(isA<HttpException>().having(
+          (e) => e.message,
+          'message',
+          contains('Failed with status 500: Internal Server Error'),
+        )),
+      );
+    });
+
+    test('throws FormatException on malformed json or missing key in response', () async {
+      final mockClient = MockClient((request) async {
+        final mockResponseBody = {
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': '{invalid json'
+                  }
+                ]
+              }
+            }
+          ]
+        };
+        return http.Response(jsonEncode(mockResponseBody), 200);
+      });
+
+      final provider = GeminiProvider(httpClient: mockClient);
+
+      await expectLater(
+        provider.translate(
+          strings: {'key': 'value'},
+          targetLanguage: 'pt',
+          config: config,
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+}
