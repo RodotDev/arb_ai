@@ -8,14 +8,12 @@
 
 ## Features
 
-- ** Flutter ARB Specification Compliance**: Parses and forwards resource descriptions and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for better contextual translation. Respects the ARB specification by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
+- **Flutter ARB Specification Compliance**: Parses and forwards resource descriptions and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for better contextual translation. Respects the ARB specification by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
 - **Smart Diffing for Cost Optimization**: Computes cryptographic MD5 hashes of source translation templates and tracks them locally in `.arb_ai_state.json`. It will only request translations for missing or modified keys, avoiding redundant API calls and keeping your AI translation costs minimal.
 - **ICU Parser & Validator**: Analyzes both source and target translation strings using a custom-built recursive descent parser. Validates that ICU placeholders, plurals, and select categories match, verifying target-language CLDR rules.
 - **Auto-Recovery Retry Loop**: Detects AI translation anomalies (like missing placeholders or incorrect syntax) and automatically retries translations up to 3 times to heal outputs before applying them to your local files.
 - **Git-Friendly Target Writer**: Serializes target files deterministically (alphabetical order or matching source order, fixed 2-space indentation, trailing newline) while omitting metadata in targets for clean, readable Git diffs.
 - **DX & CI/CD Ready**: Supports `--dry-run` to estimate translation overheads/costs, and a strict `--check` mode which exits with code `1` if translations are out-of-sync or missing (perfect for continuous integration pipelines and GitHub Actions).
-
----
 
 ## Getting Started
 
@@ -88,8 +86,6 @@ Expose the target environment key (e.g. `ARB_AI_API_KEY`) in your shell or place
 ARB_AI_API_KEY=PutYourApiKeyHere
 ```
 
----
-
 ## Usage
 
 Run `arb_ai` from the command line:
@@ -114,8 +110,6 @@ dart run arb_ai --clean
 dart run arb_ai -c config/custom_arb_ai.yaml
 ```
 
----
-
 ## CLI Options
 
 | Flag | Abbreviation | Description |
@@ -127,7 +121,6 @@ dart run arb_ai -c config/custom_arb_ai.yaml
 | `--config` | `-c` | Path to the `arb_ai.yaml` configuration file (defaults to `arb_ai.yaml`). |
 | `--help` | `-h` | Show usage instructions. |
 
----
 
 ## CI/CD Integration
 
@@ -163,8 +156,6 @@ jobs:
           ARB_AI_API_KEY: ${{ secrets.ARB_AI_API_KEY }}
         run: dart run arb_ai --check
 ```
-
----
 
 ## Developer API
 
@@ -219,14 +210,10 @@ void main() async {
 }
 ```
 
----
-
 ## Next Steps (Roadmap)
 
 - **Anthropic Claude Provider**: Native support for Claude models via the Anthropic REST API.
 - **OpenAI ChatGPT Provider**: Native support for GPT models via the OpenAI REST API.
-
----
 
 ## License
 
