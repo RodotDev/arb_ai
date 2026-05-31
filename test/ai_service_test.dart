@@ -125,7 +125,10 @@ void main() {
             request.url.path,
             '/v1beta/models/gemini-3.5-flash:generateContent',
           );
-          expect(request.url.queryParameters['key'], 'mock-api-key');
+          // The API key must be sent via header, never in the URL query string,
+          // to avoid leaking it through logged URIs or exception messages.
+          expect(request.url.queryParameters.containsKey('key'), isFalse);
+          expect(request.headers['x-goog-api-key'], 'mock-api-key');
           expect(request.headers['Content-Type'], 'application/json');
 
           final body = jsonDecode(request.body) as Map<String, dynamic>;

@@ -41,8 +41,11 @@ class GeminiProvider implements TranslationProvider {
     final cleanBase = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
+    // The API key is sent via the `x-goog-api-key` header (see below) rather
+    // than the URL query string, so it never appears in request URIs, logs, or
+    // exception messages (e.g. HttpException.toString() includes the uri).
     final url = Uri.parse(
-      '$cleanBase/v1beta/models/${config.model}:generateContent?key=$apiKey',
+      '$cleanBase/v1beta/models/${config.model}:generateContent',
     );
 
     // Build the detailed prompt enforcing ICU preservation, glossary, tone, and exclusions
@@ -201,7 +204,10 @@ class GeminiProvider implements TranslationProvider {
     };
 
     final bodyJson = jsonEncode(requestBody);
-    final headers = {'Content-Type': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    };
 
     http.Response? response;
     int attempt = 0;
