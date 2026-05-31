@@ -4,18 +4,16 @@
 [![CI](https://github.com/RodotDev/arb_ai/actions/workflows/ci.yml/badge.svg)](https://github.com/RodotDev/arb_ai/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-BSD_3--Clause-blue.svg)](https://github.com/RodotDev/arb_ai/blob/main/LICENSE)
 
-A CLI and Dart package for AI-powered, build-time translation of Flutter ARB files with smart-diffing and CI/CD ready. `arb_ai` automates target translations while mathematically preserving ICU syntax, plural categories, and placeholders.
-
----
+`arb_ai` is a AI-powered command-line tool (CLI) and Dart package designed to automate Flutter localization (l10n) and internationalization (i18n) workflows. It leverages advanced Large Language Models (LLMs) to translate Flutter `.arb` files at build-time, with cost optimization via smart-diffing and strict CI/CD alignment.
 
 ## Features
 
-- **Full ARB Specification Compliance**: Fully parses and forwards resource descriptions and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for superior contextual translation. Respects ARB specs by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
-- **True Smart Diffing**: Computes cryptographic MD5 hashes of source translation templates and tracks them locally in `.arb_ai_state.json`. It will only request translations for missing or modified keys, avoiding redundant API calls and keeping costs minimal.
-- **Rigid ICU Parser & Validator**: Analyzes both source and target strings using a custom-built recursive descent parser. Validates that placeholders, plurals, and select categories match, verifying target-language CLDR rules.
-- **Auto-Recovery Retry Loop**: Detects validation anomalies and automatically retries translations up to 3 times to heal outputs before applying them to your files.
-- **Git-Friendly Target Writer**: Serializes files deterministically (alphabetical order or matching source order, fixed 2-space indentation, trailing newline) while omitting metadata in targets for a clean Git diff.
-- **DX & CI/CD Ready**: Supports `--dry-run` to estimate translation overheads, and a strict `--check` mode which exits with code `1` if translations are out-of-sync or missing (perfect for continuous integration pipelines).
+- ** Flutter ARB Specification Compliance**: Parses and forwards resource descriptions and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for better contextual translation. Respects the ARB specification by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
+- **Smart Diffing for Cost Optimization**: Computes cryptographic MD5 hashes of source translation templates and tracks them locally in `.arb_ai_state.json`. It will only request translations for missing or modified keys, avoiding redundant API calls and keeping your AI translation costs minimal.
+- **ICU Parser & Validator**: Analyzes both source and target translation strings using a custom-built recursive descent parser. Validates that ICU placeholders, plurals, and select categories match, verifying target-language CLDR rules.
+- **Auto-Recovery Retry Loop**: Detects AI translation anomalies (like missing placeholders or incorrect syntax) and automatically retries translations up to 3 times to heal outputs before applying them to your local files.
+- **Git-Friendly Target Writer**: Serializes target files deterministically (alphabetical order or matching source order, fixed 2-space indentation, trailing newline) while omitting metadata in targets for clean, readable Git diffs.
+- **DX & CI/CD Ready**: Supports `--dry-run` to estimate translation overheads/costs, and a strict `--check` mode which exits with code `1` if translations are out-of-sync or missing (perfect for continuous integration pipelines and GitHub Actions).
 
 ---
 

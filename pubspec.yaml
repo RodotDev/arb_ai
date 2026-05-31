@@ -22,9 +22,7 @@ executables:
 
 topics:
   - localization
-  - internationalization
   - i18n
-  - l10n
-  - codegen
   - ai
-  - llm
+  - cli
+  - translation
