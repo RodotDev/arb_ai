@@ -47,7 +47,7 @@ void main() {
         originalEnvContent = null;
       }
       // Write a standard mock .env for tests
-      envFile.writeAsStringSync('TEST_GEMINI_API_KEY=mock-api-key\n');
+      envFile.writeAsStringSync('TEST_ARB_AI_API_KEY=mock-api-key\n');
     });
 
     tearDownAll(() {
@@ -62,11 +62,14 @@ void main() {
 
     const config = ArbAiConfig(
       provider: 'gemini',
-      apiKeyEnv: 'TEST_GEMINI_API_KEY',
+      apiKeyEnv: 'TEST_ARB_AI_API_KEY',
       model: 'gemini-3.5-flash',
       sourceArb: 'lib/l10n/app_en.arb',
-      targets: ['pt'],
-      glossary: {'hello': 'olá'},
+      targets: ['pt', 'es'],
+      glossary: {
+        'pt': {'hello': 'olá'},
+        'es': {'hello': 'hola'},
+      },
       doNotTranslate: ['Flutter'],
       tone: 'formal',
     );
@@ -124,6 +127,7 @@ void main() {
         expect(prompt, contains('Flutter'));
         expect(prompt, contains('hello'));
         expect(prompt, contains('olá'));
+        expect(prompt, isNot(contains('hola')));
 
         // Check responseSchema is configured correctly
         final genConfig = body['generationConfig'] as Map<String, dynamic>;
@@ -158,6 +162,75 @@ void main() {
       );
 
       expect(result, {'welcome': 'Bem-vindo!'});
+    });
+
+    test('segregates glossary terms per target language in prompt', () async {
+      // Spanish Translation Test
+      final mockClientEs = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+        
+        expect(prompt, contains('es'));
+        expect(prompt, contains('hello'));
+        expect(prompt, contains('hola'));
+        expect(prompt, isNot(contains('olá')));
+
+        final mockResponseBody = {
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({'welcome': '¡Bienvenido!'})
+                  }
+                ]
+              }
+            }
+          ]
+        };
+        return http.Response(jsonEncode(mockResponseBody), 200);
+      });
+
+      final providerEs = GeminiProvider(httpClient: mockClientEs);
+      final resultEs = await providerEs.translate(
+        strings: {'welcome': 'Welcome!'},
+        targetLanguage: 'es',
+        config: config,
+      );
+      expect(resultEs, {'welcome': '¡Bienvenido!'});
+
+      // No glossary for Polish Test
+      final mockClientPl = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final prompt = body['contents'][0]['parts'][0]['text'] as String;
+
+        expect(prompt, contains('pl'));
+        expect(prompt, isNot(contains('Strictly apply the following glossary mappings')));
+        expect(prompt, isNot(contains('hello')));
+
+        final mockResponseBody = {
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({'welcome': 'Witaj!'})
+                  }
+                ]
+              }
+            }
+          ]
+        };
+        return http.Response(jsonEncode(mockResponseBody), 200);
+      });
+
+      final providerPl = GeminiProvider(httpClient: mockClientPl);
+      final resultPl = await providerPl.translate(
+        strings: {'welcome': 'Welcome!'},
+        targetLanguage: 'pl',
+        config: config,
+      );
+      expect(resultPl, {'welcome': 'Witaj!'});
     });
 
     test('implements exponential backoff on 429 rate limit error', () async {

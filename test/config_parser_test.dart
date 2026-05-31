@@ -7,7 +7,7 @@ void main() {
     test('parse() with empty yaml returns defaults', () {
       final config = ConfigParser.parse('');
       expect(config.provider, equals('gemini'));
-      expect(config.apiKeyEnv, equals('GEMINI_API_KEY'));
+      expect(config.apiKeyEnv, equals('ARB_AI_API_KEY'));
       expect(config.model, equals('gemini-3.5-flash'));
       expect(config.sourceArb, equals('lib/l10n/app_en.arb'));
       expect(config.targets, isEmpty);
@@ -27,8 +27,11 @@ targets:
   - pt
   - es
 glossary:
-  hello: oi
-  world: mundo
+  pt:
+    hello: oi
+    world: mundo
+  es:
+    hello: hola
 do_not_translate:
   - Flutter
   - Dart
@@ -41,7 +44,10 @@ tone: formal
       expect(config.baseUrl, equals('https://api.openai.com/v1'));
       expect(config.sourceArb, equals('l10n/source.arb'));
       expect(config.targets, equals(['pt', 'es']));
-      expect(config.glossary, equals({'hello': 'oi', 'world': 'mundo'}));
+      expect(config.glossary, equals({
+        'pt': {'hello': 'oi', 'world': 'mundo'},
+        'es': {'hello': 'hola'},
+      }));
       expect(config.doNotTranslate, equals(['Flutter', 'Dart']));
       expect(config.tone, equals('formal'));
     });
@@ -80,7 +86,23 @@ glossary:
       expect(
         () => ConfigParser.parse('''
 glossary:
-  hello: 123
+  pt: hello
+'''),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => ConfigParser.parse('''
+glossary:
+  pt:
+    hello: 123
+'''),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => ConfigParser.parse('''
+glossary:
+  pt:
+    123: hello
 '''),
         throwsA(isA<FormatException>()),
       );

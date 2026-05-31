@@ -56,9 +56,10 @@ class GeminiProvider implements TranslationProvider {
       }
     }
 
-    if (config.glossary.isNotEmpty) {
+    final langGlossary = config.glossary[targetLanguage];
+    if (langGlossary != null && langGlossary.isNotEmpty) {
       promptBuffer.writeln('Strictly apply the following glossary mappings if the term/concept matches:');
-      config.glossary.forEach((key, value) {
+      langGlossary.forEach((key, value) {
         promptBuffer.writeln('- "$key" must be translated as "$value"');
       });
     }

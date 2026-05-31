@@ -46,20 +46,36 @@ class ConfigParser {
 
     // Validate glossary
     final glossaryVal = doc['glossary'];
-    final glossary = <String, String>{};
+    final glossary = <String, Map<String, String>>{};
     if (glossaryVal != null) {
       if (glossaryVal is! YamlMap) {
-        throw const FormatException("'glossary' must be a map of string values.");
+        throw const FormatException("'glossary' must be a map of language configurations.");
       }
-      for (final entry in glossaryVal.entries) {
-        final key = entry.key;
-        final value = entry.value;
-        if (key is! String || value is! String) {
+      for (final langEntry in glossaryVal.entries) {
+        final langCode = langEntry.key;
+        final langMapVal = langEntry.value;
+        if (langCode is! String) {
           throw FormatException(
-            "Glossary entries must be string-to-string mappings, got '$key: $value'.",
+            "Glossary language keys must be strings, got '$langCode'.",
           );
         }
-        glossary[key] = value;
+        if (langMapVal is! YamlMap) {
+          throw FormatException(
+            "Glossary value for language '$langCode' must be a map, got '$langMapVal'.",
+          );
+        }
+        final langMap = <String, String>{};
+        for (final entry in langMapVal.entries) {
+          final key = entry.key;
+          final value = entry.value;
+          if (key is! String || value is! String) {
+            throw FormatException(
+              "Glossary entries for language '$langCode' must be string-to-string mappings, got '$key: $value'.",
+            );
+          }
+          langMap[key] = value;
+        }
+        glossary[langCode] = langMap;
       }
     }
 

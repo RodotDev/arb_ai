@@ -4,15 +4,15 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 Future<void> main() async {
-  String? apiKey = Platform.environment['GEMINI_API_KEY'];
+  String? apiKey = Platform.environment['ARB_AI_API_KEY'];
   if (apiKey == null) {
     final envFile = File('.env');
     if (await envFile.exists()) {
       final lines = await envFile.readAsLines();
       for (final line in lines) {
         final trimmed = line.trim();
-        if (trimmed.startsWith('GEMINI_API_KEY=')) {
-          apiKey = trimmed.substring('GEMINI_API_KEY='.length).trim();
+        if (trimmed.startsWith('ARB_AI_API_KEY=')) {
+          apiKey = trimmed.substring('ARB_AI_API_KEY='.length).trim();
           if ((apiKey.startsWith('"') && apiKey.endsWith('"')) ||
               (apiKey.startsWith("'") && apiKey.endsWith("'"))) {
             apiKey = apiKey.substring(1, apiKey.length - 1);
@@ -24,7 +24,7 @@ Future<void> main() async {
   }
 
   if (apiKey == null) {
-    print('GEMINI_API_KEY environment variable or .env file entry is required.');
+    print('ARB_AI_API_KEY environment variable or .env file entry is required.');
     exit(1);
   }
 

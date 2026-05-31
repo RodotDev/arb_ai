@@ -4,7 +4,7 @@ class ArbAiConfig {
   final String provider;
 
   /// The environment variable name holding the API key.
-  /// Defaults to 'GEMINI_API_KEY'.
+  /// Defaults to 'ARB_AI_API_KEY'.
   final String apiKeyEnv;
 
   /// The specific LLM model name to use.
@@ -21,8 +21,8 @@ class ArbAiConfig {
   /// List of target language codes to translate into (e.g., 'pt', 'pl', 'ar').
   final List<String> targets;
 
-  /// Optional mapping of terms to force specific translations (glossary).
-  final Map<String, String> glossary;
+  /// Optional target-language-specific mapping of terms to force specific translations (glossary).
+  final Map<String, Map<String, String>> glossary;
 
   /// Optional list of words/terms that must not be translated.
   final List<String> doNotTranslate;
@@ -46,7 +46,7 @@ class ArbAiConfig {
   factory ArbAiConfig.defaults() {
     return const ArbAiConfig(
       provider: 'gemini',
-      apiKeyEnv: 'GEMINI_API_KEY',
+      apiKeyEnv: 'ARB_AI_API_KEY',
       model: 'gemini-3.5-flash',
       sourceArb: 'lib/l10n/app_en.arb',
       targets: [],
@@ -63,7 +63,7 @@ class ArbAiConfig {
     String? baseUrl,
     String? sourceArb,
     List<String>? targets,
-    Map<String, String>? glossary,
+    Map<String, Map<String, String>>? glossary,
     List<String>? doNotTranslate,
     String? tone,
   }) {
