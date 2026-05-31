@@ -100,6 +100,14 @@ class ArbAiCommandRunner {
       logger.error('Error parsing arguments: ${e.message}\n');
       printUsage();
       exit(64); // Exit code 64 is standard for command line usage error.
+    } on StateError catch (e) {
+      logger.error('Configuration Error: ${e.message}');
+      logger.info(
+        '\nTo resolve this, please make sure to:'
+        '\n  1. Set the environment variable in your shell (e.g., export ARB_AI_API_KEY="your_key")'
+        '\n  2. Or add a local ".env" file in the root of your project containing: ARB_AI_API_KEY="your_key"\n',
+      );
+      exit(1);
     } catch (e) {
       logger.error('Unhandled error: $e');
       exit(1);

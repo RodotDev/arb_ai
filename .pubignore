@@ -1,0 +1,18 @@
+# .pubignore
+#
+# Configures which files should be excluded when publishing this package to pub.dev.
+# Any files matched by `.gitignore` are already ignored by default.
+# Use this file to ignore development-only files that are tracked in Git.
+
+# Local secrets & credentials
+.env
+.env.*
+*.env
+
+# AI/Agent development framework configurations
+.agents/
+AGENTS.md
+skills-lock.json
+
+# Development-only spikes and helper scripts
+tool/

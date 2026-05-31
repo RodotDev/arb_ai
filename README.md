@@ -131,9 +131,48 @@ dart run arb_ai -c config/custom_arb_ai.yaml
 
 ---
 
+## CI/CD Integration
+
+Use the `--check` flag to integrate `arb_ai` into your continuous integration workflow. This ensures that pull requests cannot be merged if targets are out-of-sync or missing, preventing translation drifts in production.
+
+Here is a complete example of a GitHub Actions workflow `.github/workflows/ci_translation_check.yml`:
+
+```yaml
+name: Verify Translations
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Validate ARB Translations Alignment
+        env:
+          ARB_AI_API_KEY: ${{ secrets.ARB_AI_API_KEY }}
+        run: dart run arb_ai --check
+```
+
+---
+
 ## Developer API
 
-You can also orchestrate translations directly in Dart:
+You can also orchestrate translations directly in Dart.
+
+### Option A: Loading from `arb_ai.yaml` file (Recommended)
 
 ```dart
 import 'dart:io';
@@ -148,6 +187,37 @@ void main() async {
 
   final success = await orchestrator.run();
   print('Orchestrator executed successfully: $success');
+}
+```
+
+### Option B: Initializing programmatically in code
+
+If you are building your own scripts, custom developer utilities, or pipeline automations, you can construct `ArbAiConfig` programmatically in memory:
+
+```dart
+import 'package:arb_ai/arb_ai.dart';
+
+void main() async {
+  const config = ArbAiConfig(
+    provider: 'gemini',
+    apiKeyEnv: 'ARB_AI_API_KEY',
+    model: 'gemini-3.5-flash',
+    sourceArb: 'lib/l10n/app_en.arb',
+    targets: ['pt', 'es', 'fr'],
+    glossary: {
+      'pt': {'hello': 'oi'},
+    },
+    doNotTranslate: ['Flutter', 'Dart'],
+    tone: 'formal',
+  );
+
+  final orchestrator = ArbAiOrchestrator(
+    config: config,
+    logger: const Logger(),
+  );
+
+  final success = await orchestrator.run();
+  print('Manual translation pipeline finished: $success');
 }
 ```
 
