@@ -4,6 +4,7 @@
 
 * **Improved UX/DX**: Added early "fail-fast" validation for the AI provider API key, ensuring the CLI halts immediately with clear instructions if the key is missing, rather than parsing files and starting the pipeline only to fail midway.
 * **API Error Formatting**: Automatically pretty-prints raw API JSON error responses in the terminal console to improve diagnostic readability.
+* **Progressive Batch Saving**: Writes the target `.arb` files and updates the state cache (`.arb_ai_state.json`) immediately after each batch of translations is completed and validated. This prevents data loss and maintains translation integrity across large multivariant/multi-language operations in case of interruptions.
 
 ## [0.1.0] - 2026-05-31
 

@@ -287,6 +287,41 @@ class ArbAiOrchestrator {
 
       final newTranslations = <String, String>{};
 
+      if (nonTextToCopy.isNotEmpty) {
+        logger.info(
+          'Copying ${nonTextToCopy.length} non-text resource keys directly for "$targetLang"...',
+        );
+        newTranslations.addAll(nonTextToCopy);
+      }
+
+      // Helper function to write target file and save state manager changes
+      bool saveProgress() {
+        final mergedTranslations = <String, String>{};
+        if (targetArb != null) {
+          mergedTranslations.addAll(targetArb.translations);
+        }
+        mergedTranslations.addAll(newTranslations);
+
+        try {
+          ArbWriter.write(
+            file: targetFile,
+            locale: targetLang,
+            translations: mergedTranslations,
+            sourceKeyOrder: sourceArb.keyOrder,
+          );
+        } catch (e) {
+          logger.error('Failed to write target file "${targetFile.path}": $e');
+          return false;
+        }
+
+        try {
+          stateManager.save();
+        } catch (e) {
+          logger.warning('Failed to save state file: $e');
+        }
+        return true;
+      }
+
       if (toTranslate.isNotEmpty) {
         logger.info(
           'Translating ${toTranslate.length} keys to "$targetLang"...',
@@ -311,6 +346,11 @@ class ArbAiOrchestrator {
               stateManager: stateManager,
             );
             newTranslations.addAll(translatedBatch);
+
+            // Write progress after each successfully processed batch
+            if (!saveProgress()) {
+              return false;
+            }
           } catch (e) {
             logger.error(
               'Failed to translate batch ${i + 1}/${batches.length} for "$targetLang": $e',
@@ -318,37 +358,18 @@ class ArbAiOrchestrator {
             return false;
           }
         }
+      } else {
+        // If there were only non-text keys to copy, write and save them now
+        if (nonTextToCopy.isNotEmpty) {
+          if (!saveProgress()) {
+            return false;
+          }
+        }
       }
 
-      if (nonTextToCopy.isNotEmpty) {
-        logger.info(
-          'Copying ${nonTextToCopy.length} non-text resource keys directly for "$targetLang"...',
-        );
-        newTranslations.addAll(nonTextToCopy);
-      }
-
-      // Merge newly translated keys with existing ones
-      final mergedTranslations = <String, String>{};
-      if (targetArb != null) {
-        mergedTranslations.addAll(targetArb.translations);
-      }
-      mergedTranslations.addAll(newTranslations);
-
-      // Write target ARB file deterministically
-      try {
-        ArbWriter.write(
-          file: targetFile,
-          locale: targetLang,
-          translations: mergedTranslations,
-          sourceKeyOrder: sourceArb.keyOrder,
-        );
-        logger.success(
-          'Successfully wrote translations to "${targetFile.path}".',
-        );
-      } catch (e) {
-        logger.error('Failed to write target file "${targetFile.path}": $e');
-        return false;
-      }
+      logger.success(
+        'Successfully wrote all translations to "${targetFile.path}".',
+      );
     }
 
     // Save final state changes
