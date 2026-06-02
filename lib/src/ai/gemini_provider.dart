@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../arb/icu_validator.dart';
 import '../config/arb_ai_config.dart';
 import 'translation_provider.dart';
 
@@ -36,6 +37,7 @@ class GeminiProvider implements TranslationProvider {
     required ArbAiConfig config,
     Map<String, String>? descriptions,
     Map<String, Map<String, dynamic>>? placeholders,
+    Map<String, String>? retryFeedback,
   }) async {
     if (strings.isEmpty) return {};
 
@@ -87,6 +89,15 @@ class GeminiProvider implements TranslationProvider {
       '- For plurals, use exactly the CLDR plural categories required by the '
       'target language — no more, no less — always including "other".',
     );
+    final baseLanguage = targetLanguage.split(RegExp('[_-]'))[0].toLowerCase();
+    final requiredCategories = IcuValidator.cldrPluralCategories[targetLanguage] ??
+        IcuValidator.cldrPluralCategories[baseLanguage];
+    if (requiredCategories != null) {
+      promptBuffer.writeln(
+        '  Specifically for target language code "$targetLanguage", every plural expression MUST '
+        'define exactly these CLDR category keys: ${requiredCategories.join(", ")}.',
+      );
+    }
     promptBuffer.writeln(
       "- If a message contains any {...} expression, escape every literal "
       "apostrophe/single quote by doubling it (' becomes '') per ICU "
@@ -135,6 +146,15 @@ class GeminiProvider implements TranslationProvider {
             schemaDescBuffer.write(';');
           }
         });
+      }
+
+      final keyFeedback = retryFeedback?[key];
+      if (keyFeedback != null && keyFeedback.isNotEmpty) {
+        if (schemaDescBuffer.isNotEmpty) schemaDescBuffer.write(' ');
+        schemaDescBuffer.write(
+          'IMPORTANT: Previous translation attempt failed validation: $keyFeedback. '
+          'You MUST fix this error in your new translation.'
+        );
       }
 
       schemaProperties[key] = {
@@ -249,6 +269,23 @@ class GeminiProvider implements TranslationProvider {
         if (response.statusCode == 200) {
           break;
         } else if (response.statusCode == 429) {
+          Duration delayDuration = Duration(seconds: 1 << (attempt + 1));
+          try {
+            final parsedDelay = _parseRetryDelay(response.body);
+            if (parsedDelay != null) {
+              delayDuration = parsedDelay;
+            }
+          } catch (_) {
+            // Ignore parse failure, fallback to backoff
+          }
+
+          if (delayDuration.inSeconds > 120) {
+            throw HttpException(
+              'Quota exhausted. Safe retry limit (120s) exceeded: ${delayDuration.inSeconds}s. Aborting.\n${_prettyPrintJson(response.body)}',
+              uri: url,
+            );
+          }
+
           attempt++;
           if (attempt >= maxRetries) {
             throw HttpException(
@@ -256,12 +293,25 @@ class GeminiProvider implements TranslationProvider {
               uri: url,
             );
           }
-          final backoffSeconds = 1 << attempt; // 2, 4, 8, 16 seconds
+          await _delay(delayDuration);
+          continue;
+        } else if (response.statusCode == 500 ||
+                   response.statusCode == 502 ||
+                   response.statusCode == 503) {
+          attempt++;
+          if (attempt >= maxRetries) {
+            throw HttpException(
+              'Failed after $maxRetries retries with status ${response.statusCode}. Last body:\n${_prettyPrintJson(response.body)}',
+              uri: url,
+            );
+          }
+          final backoffSeconds = 1 << attempt;
           await _delay(Duration(seconds: backoffSeconds));
           continue;
         } else {
+          // Fail fast for 400, 401, 403, and other fatal/unrecognized status codes
           throw HttpException(
-            'Failed with status ${response.statusCode}:\n${_prettyPrintJson(response.body)}',
+            'Failed with status ${response.statusCode} (fatal error):\n${_prettyPrintJson(response.body)}',
             uri: url,
           );
         }
@@ -427,5 +477,33 @@ class GeminiProvider implements TranslationProvider {
     } catch (_) {
       return body;
     }
+  }
+
+  /// Safely parses the retry delay from Gemini rate limit errors.
+  Duration? _parseRetryDelay(String body) {
+    try {
+      final decoded = jsonDecode(body) as Map<String, dynamic>;
+      final error = decoded['error'] as Map<String, dynamic>?;
+      if (error == null) return null;
+      final details = error['details'] as List<dynamic>?;
+      if (details == null) return null;
+      for (final detail in details) {
+        if (detail is Map<String, dynamic>) {
+          if (detail['@type'] == 'type.googleapis.com/google.rpc.RetryInfo') {
+            final delayStr = detail['retryDelay'] as String?;
+            if (delayStr != null && delayStr.endsWith('s')) {
+              final secondsStr = delayStr.substring(0, delayStr.length - 1);
+              final seconds = double.tryParse(secondsStr);
+              if (seconds != null) {
+                return Duration(milliseconds: (seconds * 1000).toInt());
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Return null on parsing errors
+    }
+    return null;
   }
 }

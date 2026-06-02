@@ -318,11 +318,20 @@ class ValidationResult {
 /// Validates translation strings against source ICU templates.
 class IcuValidator {
   /// Maps languages to their required CLDR plural categories (excluding explicit categories like =0, =1).
-  static const Map<String, List<String>> _cldrPluralCategories = {
+  static const Map<String, List<String>> cldrPluralCategories = {
     'pl': ['one', 'few', 'many', 'other'],
     'ru': ['one', 'few', 'many', 'other'],
     'uk': ['one', 'few', 'many', 'other'],
     'ar': ['zero', 'one', 'two', 'few', 'many', 'other'],
+    'cs': ['one', 'few', 'many', 'other'],
+    'sk': ['one', 'few', 'many', 'other'],
+    'ro': ['one', 'few', 'other'],
+    'hr': ['one', 'few', 'other'],
+    'bs': ['one', 'few', 'other'],
+    'sr': ['one', 'few', 'other'],
+    'lt': ['one', 'few', 'other'],
+    'lv': ['zero', 'one', 'other'],
+    'sl': ['one', 'two', 'few', 'other'],
   };
 
   /// Validates a single target translation string against its source.
@@ -407,7 +416,7 @@ class IcuValidator {
 
       // Enforce target-language CLDR plural rules
       if (sExpr.type == 'plural') {
-        final requiredCldr = _cldrPluralCategories[targetLanguage];
+        final requiredCldr = cldrPluralCategories[targetLanguage];
         if (requiredCldr != null) {
           final missingCldr = requiredCldr.toSet().difference(tExpr.categories);
           if (missingCldr.isNotEmpty) {

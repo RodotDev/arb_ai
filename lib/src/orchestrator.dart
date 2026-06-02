@@ -393,6 +393,7 @@ class ArbAiOrchestrator {
   }) async {
     var currentBatch = Map<String, String>.from(batch);
     final Map<String, String> successfulTranslations = {};
+    final retryFeedback = <String, String>{};
 
     // Build context descriptions and placeholder metadata maps for the batch
     final descriptions = <String, String>{};
@@ -432,8 +433,12 @@ class ArbAiOrchestrator {
           config: config,
           descriptions: descriptions,
           placeholders: placeholders,
+          retryFeedback: retryFeedback,
         );
       } catch (e) {
+        if (e is HttpException || e is StateError) {
+          rethrow;
+        }
         attempt++;
         if (attempt >= maxRetries) {
           rethrow;
@@ -452,6 +457,7 @@ class ArbAiOrchestrator {
 
         if (targetVal == null) {
           failedKeys[key] = sourceVal;
+          retryFeedback[key] = 'Key was not returned in translation.';
           logger.warning('Key "$key" was not returned in translation.');
           continue;
         }
@@ -472,6 +478,7 @@ class ArbAiOrchestrator {
           );
         } else {
           failedKeys[key] = sourceVal;
+          retryFeedback[key] = valResult.error ?? 'Validation failed.';
           logger.warning(
             'ICU validation failed for key "$key": ${valResult.error}',
           );

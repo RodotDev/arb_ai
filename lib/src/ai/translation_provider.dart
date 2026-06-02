@@ -13,6 +13,7 @@ abstract class TranslationProvider {
     required ArbAiConfig config,
     Map<String, String>? descriptions,
     Map<String, Map<String, dynamic>>? placeholders,
+    Map<String, String>? retryFeedback,
   });
 
   /// Ensures the provider is correctly configured for execution (e.g., checks API keys).

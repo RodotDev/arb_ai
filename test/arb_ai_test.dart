@@ -6,7 +6,7 @@ void main() {
     test('default configuration initializes correctly', () {
       final config = ArbAiConfig.defaults();
       expect(config.provider, equals('gemini'));
-      expect(config.model, equals('gemini-3.5-flash'));
+      expect(config.model, equals('gemini-2.5-flash'));
     });
   });
 }

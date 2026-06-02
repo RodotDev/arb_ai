@@ -315,6 +315,34 @@ void main() {
       );
       expect(validAr.isValid, isTrue);
     });
+
+    test('enforces target-language CLDR plural rules for Slovenian', () {
+      const source = '{count, plural, =0{Zero} other{Other}}';
+
+      // Slovenian requires: one, two, few, other
+      final invalidSl = IcuValidator.validate(
+        key: 'inboxCount',
+        source: source,
+        target: '{count, plural, one{1} other{other}}',
+        targetLanguage: 'sl',
+      );
+      expect(invalidSl.isValid, isFalse);
+      expect(
+        invalidSl.error,
+        contains(
+          'Missing required CLDR plural categories for language "sl": two, few',
+        ),
+      );
+
+      final validSl = IcuValidator.validate(
+        key: 'inboxCount',
+        source: source,
+        target:
+            '{count, plural, one{1} two{2} few{few} other{other}}',
+        targetLanguage: 'sl',
+      );
+      expect(validSl.isValid, isTrue);
+    });
   });
 }
 

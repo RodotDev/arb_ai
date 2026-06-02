@@ -1,10 +1,25 @@
 # Changelog
 
-## 0.2.0
+## [0.2.0] - 2026-06-03
 
-* **Improved UX/DX**: Added early "fail-fast" validation for the AI provider API key, ensuring the CLI halts immediately with clear instructions if the key is missing, rather than parsing files and starting the pipeline only to fail midway.
-* **API Error Formatting**: Automatically pretty-prints raw API JSON error responses in the terminal console to improve diagnostic readability.
-* **Progressive Batch Saving**: Writes the target `.arb` files and updates the state cache (`.arb_ai_state.json`) immediately after each batch of translations is completed and validated. This prevents data loss and maintains translation integrity across large multivariant/multi-language operations in case of interruptions.
+### Added
+
+- Early "fail-fast" validation for the AI provider API key, ensuring the CLI halts immediately with clear instructions if the key is missing, rather than parsing files and starting the pipeline only to fail midway.
+- Auto-formatting (pretty-print) for raw API JSON error responses in the terminal console to improve diagnostic readability.
+- Progressive batch saving that writes target `.arb` files and updates the state cache (`.arb_ai_state.json`) immediately after each batch of translations is completed and validated, preventing data loss and maintaining translation integrity.
+
+### Changed
+
+- Updated default model from `gemini-3.5-flash` to `gemini-2.5-flash` for improved availability and stability.
+- Increased default batch size from 25 to 100 to optimize API quota consumption.
+- Expanded CLDR plural rules validation support to cover more languages: Czech (`cs`), Slovak (`sk`), Romanian (`ro`), Croatian (`hr`), Bosnian (`bs`), Serbian (`sr`), Lithuanian (`lt`), Latvian (`lv`), and Slovenian (`sl`).
+
+### Fixed
+
+- Added translation retry error feedback, passing validation issues from previous attempts back to the LLM context to enable self-correction.
+- Implemented smart HTTP 429 rate limit backoff parser that respects the API's `retryDelay` and aborts if it exceeds 120 seconds.
+- Added automated retries for transient server errors (`500`, `502`, `503`) and instant fail-fast for fatal API errors (`400`, `401`, `403`).
+
 
 ## [0.1.0] - 2026-05-31
 
@@ -17,3 +32,7 @@
 - Rigid ICU validation supporting plural forms and CLDR rules across languages (Polish, Arabic, Portuguese, Russian, and more).
 - Auto-healing translation retry loop on failing ICU parser outputs.
 - Deterministic ARB writer for clean, git-friendly output file styling.
+
+[Unreleased]: https://github.com/RodotDev/arb_ai/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/RodotDev/arb_ai/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/RodotDev/arb_ai/releases/tag/v0.1.0

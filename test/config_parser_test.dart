@@ -8,13 +8,13 @@ void main() {
       final config = ConfigParser.parse('');
       expect(config.provider, equals('gemini'));
       expect(config.apiKeyEnv, equals('ARB_AI_API_KEY'));
-      expect(config.model, equals('gemini-3.5-flash'));
+      expect(config.model, equals('gemini-2.5-flash'));
       expect(config.sourceArb, equals('lib/l10n/app_en.arb'));
       expect(config.targets, isEmpty);
       expect(config.glossary, isEmpty);
       expect(config.doNotTranslate, isEmpty);
       expect(config.tone, isNull);
-      expect(config.batchSize, equals(25));
+      expect(config.batchSize, equals(100));
     });
 
     test('parse() with valid overrides parses correctly', () {

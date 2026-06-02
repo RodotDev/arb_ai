@@ -411,7 +411,10 @@ void main() {
         return http.Response('Internal Server Error', 500);
       });
 
-      final provider = GeminiProvider(httpClient: mockClient);
+      final provider = GeminiProvider(
+        httpClient: mockClient,
+        delay: (duration) async {},
+      );
 
       await expectLater(
         provider.translate(
@@ -424,7 +427,7 @@ void main() {
             (e) => e.message,
             'message',
             allOf(
-              contains('Failed with status 500:'),
+              contains('Failed after 5 retries with status 500'),
               contains('Internal Server Error'),
             ),
           ),

@@ -24,6 +24,7 @@ class MockTranslationProvider implements TranslationProvider {
     required ArbAiConfig config,
     Map<String, String>? descriptions,
     Map<String, Map<String, dynamic>>? placeholders,
+    Map<String, String>? retryFeedback,
   }) async {
     dynamic result;
     try {
@@ -33,9 +34,20 @@ class MockTranslationProvider implements TranslationProvider {
         config,
         descriptions,
         placeholders,
+        retryFeedback,
       );
     } catch (_) {
-      result = await onTranslate(strings, targetLanguage, config);
+      try {
+        result = await onTranslate(
+          strings,
+          targetLanguage,
+          config,
+          descriptions,
+          placeholders,
+        );
+      } catch (_) {
+        result = await onTranslate(strings, targetLanguage, config);
+      }
     }
     return Map<String, String>.from(result as Map);
   }
@@ -300,6 +312,56 @@ void main() {
             targetArb: ArbFile.parse(targetContent),
           ),
           isTrue,
+        );
+      },
+    );
+
+    test(
+      'passes correct retryFeedback to provider when translation validation fails',
+      () async {
+        var callCount = 0;
+        Map<String, String>? receivedRetryFeedback;
+
+        final provider = MockTranslationProvider((
+          Map<String, String> strings,
+          String targetLanguage,
+          ArbAiConfig config,
+          Map<String, String>? descriptions,
+          Map<String, Map<String, dynamic>>? placeholders,
+          Map<String, String>? retryFeedback,
+        ) async {
+          callCount++;
+          receivedRetryFeedback = retryFeedback;
+          if (callCount == 1) {
+            // Return a translation missing placeholder {name}
+            return {
+              'welcome': 'Bem-vindo!',
+              'inbox':
+                  '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+            };
+          }
+          // Succeed on subsequent call
+          return {
+            'welcome': 'Bem-vindo, {name}!',
+            'inbox':
+                '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+          };
+        });
+
+        final orchestrator = ArbAiOrchestrator(
+          config: testConfig,
+          provider: provider,
+          logger: const SilentLogger(),
+        );
+
+        final success = await orchestrator.run();
+        expect(success, isTrue);
+        expect(callCount, 2);
+
+        expect(receivedRetryFeedback, isNotNull);
+        expect(
+          receivedRetryFeedback!['welcome'],
+          contains('Missing placeholder variables: {name}'),
         );
       },
     );

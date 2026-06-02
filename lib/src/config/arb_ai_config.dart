@@ -8,7 +8,7 @@ class ArbAiConfig {
   final String apiKeyEnv;
 
   /// The specific LLM model name to use.
-  /// Defaults to 'gemini-3.5-flash'.
+  /// Defaults to 'gemini-2.5-flash'.
   final String model;
 
   /// An optional custom API base URL.
@@ -31,7 +31,7 @@ class ArbAiConfig {
   final String? tone;
 
   /// The maximum number of translation keys sent in a single batch to the provider.
-  /// Defaults to 25.
+  /// Defaults to 100.
   final int batchSize;
 
   /// Creates an [ArbAiConfig] configuration instance manually.
@@ -45,7 +45,7 @@ class ArbAiConfig {
     required this.glossary,
     required this.doNotTranslate,
     this.tone,
-    this.batchSize = 25,
+    this.batchSize = 100,
   });
 
   /// Creates a default configuration instance.
@@ -53,12 +53,12 @@ class ArbAiConfig {
     return const ArbAiConfig(
       provider: 'gemini',
       apiKeyEnv: 'ARB_AI_API_KEY',
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       sourceArb: 'lib/l10n/app_en.arb',
       targets: [],
       glossary: {},
       doNotTranslate: [],
-      batchSize: 25,
+      batchSize: 100,
     );
   }
 
