@@ -252,7 +252,7 @@ class GeminiProvider implements TranslationProvider {
           attempt++;
           if (attempt >= maxRetries) {
             throw HttpException(
-              'Failed after $maxRetries retries with status 429 (Too Many Requests). Last body: ${response.body}',
+              'Failed after $maxRetries retries with status 429 (Too Many Requests). Last body:\n${_prettyPrintJson(response.body)}',
               uri: url,
             );
           }
@@ -261,7 +261,7 @@ class GeminiProvider implements TranslationProvider {
           continue;
         } else {
           throw HttpException(
-            'Failed with status ${response.statusCode}: ${response.body}',
+            'Failed with status ${response.statusCode}:\n${_prettyPrintJson(response.body)}',
             uri: url,
           );
         }
@@ -416,6 +416,16 @@ class GeminiProvider implements TranslationProvider {
           return '$baseName (Region: $region)';
         }
         return langCode;
+    }
+  }
+
+  /// Helper to pretty print a JSON string if possible, otherwise return original string.
+  static String _prettyPrintJson(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return const JsonEncoder.withIndent('  ').convert(decoded);
+    } catch (_) {
+      return body;
     }
   }
 }

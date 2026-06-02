@@ -423,7 +423,10 @@ void main() {
           isA<HttpException>().having(
             (e) => e.message,
             'message',
-            contains('Failed with status 500: Internal Server Error'),
+            allOf(
+              contains('Failed with status 500:'),
+              contains('Internal Server Error'),
+            ),
           ),
         ),
       );
