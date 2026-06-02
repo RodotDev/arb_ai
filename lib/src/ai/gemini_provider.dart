@@ -20,6 +20,16 @@ class GeminiProvider implements TranslationProvider {
        _delay = delay ?? Future.delayed;
 
   @override
+  void validateEnvironment(ArbAiConfig config) {
+    final apiKey = _getApiKey(config.apiKeyEnv);
+    if (apiKey == null || apiKey.isEmpty) {
+      throw StateError(
+        'API key not found in environment variable "${config.apiKeyEnv}" or a local .env file.',
+      );
+    }
+  }
+
+  @override
   Future<Map<String, String>> translate({
     required Map<String, String> strings,
     required String targetLanguage,

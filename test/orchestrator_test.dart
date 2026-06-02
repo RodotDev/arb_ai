@@ -6,8 +6,16 @@ import 'package:test/test.dart';
 
 class MockTranslationProvider implements TranslationProvider {
   final Function onTranslate;
+  final bool failValidation;
 
-  MockTranslationProvider(this.onTranslate);
+  MockTranslationProvider(this.onTranslate, {this.failValidation = false});
+
+  @override
+  void validateEnvironment(ArbAiConfig config) {
+    if (failValidation) {
+      throw StateError('API key not found');
+    }
+  }
 
   @override
   Future<Map<String, String>> translate({
@@ -220,6 +228,24 @@ void main() {
         expect(success, isTrue);
       },
     );
+
+    test('fails fast and throws StateError if environment validation fails', () async {
+      final provider = MockTranslationProvider(
+        (strings, targetLanguage, config, d, p) async => <String, String>{},
+        failValidation: true,
+      );
+
+      final orchestrator = ArbAiOrchestrator(
+        config: testConfig,
+        provider: provider,
+        logger: const SilentLogger(),
+      );
+
+      expect(
+        () => orchestrator.run(),
+        throwsA(isA<StateError>()),
+      );
+    });
 
     test(
       'successfully translates, validates ICU, and writes deterministic output',

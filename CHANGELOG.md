@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+* **Improved UX/DX**: Added early "fail-fast" validation for the AI provider API key, ensuring the CLI halts immediately with clear instructions if the key is missing, rather than parsing files and starting the pipeline only to fail midway.
+
 ## [0.1.0] - 2026-05-31
 
 ### Added

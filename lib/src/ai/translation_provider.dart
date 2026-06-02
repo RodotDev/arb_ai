@@ -14,4 +14,9 @@ abstract class TranslationProvider {
     Map<String, String>? descriptions,
     Map<String, Map<String, dynamic>>? placeholders,
   });
+
+  /// Ensures the provider is correctly configured for execution (e.g., checks API keys).
+  ///
+  /// Throws a [StateError] if validation fails.
+  void validateEnvironment(ArbAiConfig config);
 }

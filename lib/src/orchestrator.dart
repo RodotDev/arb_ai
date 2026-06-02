@@ -109,6 +109,10 @@ class ArbAiOrchestrator {
       return true;
     }
 
+    if (!dryRun && !check) {
+      provider.validateEnvironment(config);
+    }
+
     logger.info('Starting arb_ai translation pipeline...');
     logger.info(
       'Source locale: ${sourceArb.locale ?? "not specified (fallback to English)"}',
