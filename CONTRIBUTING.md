@@ -18,6 +18,9 @@ First off, thank you for considering contributing to `arb_ai`! We welcome contri
 
 - Write unit tests for new features or bug fixes.
 - Run the test suite using `dart test` to ensure your changes do not break existing functionality.
+- **Assertions**: Use `package:checks` (`check(...)`) for all assertions instead of the legacy `expect(...)` from `package:matcher`.
+- **Mocking**: Use `package:mocktail` for creating mock implementations. Avoid manual mock boilerplate or code generation with `package:mockito`.
+
 
 ## Changelog and Versioning
 

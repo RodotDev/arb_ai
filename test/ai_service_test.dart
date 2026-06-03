@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:checks/checks.dart';
 import 'package:test/test.dart';
 import 'package:arb_ai/arb_ai.dart';
 
@@ -9,7 +10,7 @@ void main() {
   group('TranslationBatcher', () {
     test('chunks empty map to empty list', () {
       final result = TranslationBatcher.chunk({});
-      expect(result, isEmpty);
+      check(result).isEmpty();
     });
 
     test('chunks correctly according to maxKeys', () {
@@ -22,21 +23,15 @@ void main() {
       };
 
       final chunked = TranslationBatcher.chunk(input, maxKeys: 2);
-      expect(chunked, hasLength(3));
-      expect(chunked[0], {'k1': 'v1', 'k2': 'v2'});
-      expect(chunked[1], {'k3': 'v3', 'k4': 'v4'});
-      expect(chunked[2], {'k5': 'v5'});
+      check(chunked).length.equals(3);
+      check(chunked[0]).deepEquals({'k1': 'v1', 'k2': 'v2'});
+      check(chunked[1]).deepEquals({'k3': 'v3', 'k4': 'v4'});
+      check(chunked[2]).deepEquals({'k5': 'v5'});
     });
 
     test('throws ArgumentError on invalid maxKeys', () {
-      expect(
-        () => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: 0),
-        throwsArgumentError,
-      );
-      expect(
-        () => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: -1),
-        throwsArgumentError,
-      );
+      check(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: 0)).throws<ArgumentError>();
+      check(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: -1)).throws<ArgumentError>();
     });
   });
 
@@ -92,8 +87,8 @@ void main() {
         config: config,
       );
 
-      expect(result, isEmpty);
-      expect(callCount, 0);
+      check(result).isEmpty();
+      check(callCount).equals(0);
     });
 
     test(
@@ -104,14 +99,16 @@ void main() {
         );
         final provider = GeminiProvider(httpClient: mockClient);
 
-        await expectLater(
-          provider.translate(
+        try {
+          await provider.translate(
             strings: {'key': 'value'},
             targetLanguage: 'pt',
             config: config.copyWith(apiKeyEnv: 'NON_EXISTENT_KEY_123'),
-          ),
-          throwsStateError,
-        );
+          );
+          fail('Expected StateError');
+        } on StateError catch (_) {
+          // Success
+        }
       },
     );
 
@@ -119,41 +116,39 @@ void main() {
       'performs successful translation with correct payload structure',
       () async {
         final mockClient = MockClient((request) async {
-          expect(request.url.scheme, 'https');
-          expect(request.url.host, 'generativelanguage.googleapis.com');
-          expect(
-            request.url.path,
-            '/v1beta/models/gemini-3.5-flash:generateContent',
-          );
+          check(request.url.scheme).equals('https');
+          check(request.url.host).equals('generativelanguage.googleapis.com');
+          check(request.url.path).equals('/v1beta/models/gemini-3.5-flash:generateContent');
+          
           // The API key must be sent via header, never in the URL query string,
           // to avoid leaking it through logged URIs or exception messages.
-          expect(request.url.queryParameters.containsKey('key'), isFalse);
-          expect(request.headers['x-goog-api-key'], 'mock-api-key');
-          expect(request.headers['Content-Type'], 'application/json');
+          check(request.url.queryParameters.containsKey('key')).isFalse();
+          check(request.headers['x-goog-api-key']).equals('mock-api-key');
+          check(request.headers['Content-Type']).equals('application/json');
 
           final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body, contains('contents'));
-          expect(body, contains('systemInstruction'));
-          expect(body, contains('generationConfig'));
-          expect(body, contains('safetySettings'));
+          check(body.keys).contains('contents');
+          check(body.keys).contains('systemInstruction');
+          check(body.keys).contains('generationConfig');
+          check(body.keys).contains('safetySettings');
 
           // Check prompt contains glossary, tone, and doNotTranslate instructions
           final prompt = body['contents'][0]['parts'][0]['text'] as String;
-          expect(prompt, contains('pt'));
-          expect(prompt, contains('formal'));
-          expect(prompt, contains('Flutter'));
-          expect(prompt, contains('hello'));
-          expect(prompt, contains('olá'));
-          expect(prompt, isNot(contains('hola')));
+          check(prompt).contains('pt');
+          check(prompt).contains('formal');
+          check(prompt).contains('Flutter');
+          check(prompt).contains('hello');
+          check(prompt).contains('olá');
+          check(prompt).not((it) => it.contains('hola'));
 
           // Check responseSchema is configured correctly
           final genConfig = body['generationConfig'] as Map<String, dynamic>;
-          expect(genConfig['responseMimeType'], 'application/json');
+          check(genConfig['responseMimeType']).equals('application/json');
           final responseSchema =
               genConfig['responseSchema'] as Map<String, dynamic>;
-          expect(responseSchema['type'], 'OBJECT');
-          expect(responseSchema['required'], contains('welcome'));
-          expect(responseSchema['properties']['welcome']['type'], 'STRING');
+          check(responseSchema['type']).equals('OBJECT');
+          check((responseSchema['required'] as List).cast<String>()).contains('welcome');
+          check(responseSchema['properties']['welcome']['type']).equals('STRING');
 
           final mockResponseBody = {
             'candidates': [
@@ -179,7 +174,7 @@ void main() {
           config: config,
         );
 
-        expect(result, {'welcome': 'Bem-vindo!'});
+        check(result).deepEquals({'welcome': 'Bem-vindo!'});
       },
     );
 
@@ -189,10 +184,10 @@ void main() {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
-        expect(prompt, contains('es'));
-        expect(prompt, contains('hello'));
-        expect(prompt, contains('hola'));
-        expect(prompt, isNot(contains('olá')));
+        check(prompt).contains('es');
+        check(prompt).contains('hello');
+        check(prompt).contains('hola');
+        check(prompt).not((it) => it.contains('olá'));
 
         final mockResponseBody = {
           'candidates': [
@@ -216,19 +211,16 @@ void main() {
         targetLanguage: 'es',
         config: config,
       );
-      expect(resultEs, {'welcome': '¡Bienvenido!'});
+      check(resultEs).deepEquals({'welcome': '¡Bienvenido!'});
 
       // No glossary for Polish Test
       final mockClientPl = MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
-        expect(prompt, contains('pl'));
-        expect(
-          prompt,
-          isNot(contains('Strictly apply the following glossary mappings')),
-        );
-        expect(prompt, isNot(contains('hello')));
+        check(prompt).contains('pl');
+        check(prompt).not((it) => it.contains('Strictly apply the following glossary mappings'));
+        check(prompt).not((it) => it.contains('hello'));
 
         final mockResponseBody = {
           'candidates': [
@@ -252,7 +244,7 @@ void main() {
         targetLanguage: 'pl',
         config: config,
       );
-      expect(resultPl, {'welcome': 'Witaj!'});
+      check(resultPl).deepEquals({'welcome': 'Witaj!'});
     });
 
     test(
@@ -263,16 +255,8 @@ void main() {
           final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
           // Check that placeholder and ICU preservation instructions are present
-          expect(
-            prompt,
-            contains('Never translate placeholder or variable names.'),
-          );
-          expect(
-            prompt,
-            contains(
-              'For plural and select expressions, translate ONLY the human-readable',
-            ),
-          );
+          check(prompt).contains('Never translate placeholder or variable names.');
+          check(prompt).contains('For plural and select expressions, translate ONLY the human-readable');
 
           // Check that the metadata is injected directly into responseSchema description
           final genConfig = body['generationConfig'] as Map<String, dynamic>;
@@ -281,16 +265,9 @@ void main() {
           final welcomeSchema =
               responseSchema['properties']['welcome'] as Map<String, dynamic>;
 
-          expect(
-            welcomeSchema['description'],
-            contains('Context: Welcome message shown at homepage.'),
-          );
-          expect(
-            welcomeSchema['description'],
-            contains(
-              'Placeholders info: {name} (desc: User\'s display name, example: John Doe)',
-            ),
-          );
+          check(welcomeSchema['description'] as String).contains('Context: Welcome message shown at homepage.');
+          check(welcomeSchema['description'] as String).contains(
+              'Placeholders info: {name} (desc: User\'s display name, example: John Doe)');
 
           final mockResponseBody = {
             'candidates': [
@@ -324,7 +301,7 @@ void main() {
           },
         );
 
-        expect(result, {'welcome': 'Bem-vindo, {name}!'});
+        check(result).deepEquals({'welcome': 'Bem-vindo, {name}!'});
       },
     );
 
@@ -365,10 +342,10 @@ void main() {
         config: config,
       );
 
-      expect(result, {'key': 'value_pt'});
-      expect(callCount, 2);
-      expect(recordedDelays, hasLength(1));
-      expect(recordedDelays[0].inSeconds, 2); // 1 << 1
+      check(result).deepEquals({'key': 'value_pt'});
+      check(callCount).equals(2);
+      check(recordedDelays).length.equals(1);
+      check(recordedDelays[0].inSeconds).equals(2); // 1 << 1
     });
 
     test('throws HttpException after maximum 429 retries', () async {
@@ -386,24 +363,20 @@ void main() {
         },
       );
 
-      await expectLater(
-        provider.translate(
+      try {
+        await provider.translate(
           strings: {'key': 'value'},
           targetLanguage: 'pt',
           config: config,
-        ),
-        throwsA(
-          isA<HttpException>().having(
-            (e) => e.message,
-            'message',
-            contains('Failed after 5 retries with status 429'),
-          ),
-        ),
-      );
+        );
+        fail('Expected HttpException');
+      } on HttpException catch (e) {
+        check(e.message).contains('Failed after 5 retries with status 429');
+      }
 
-      expect(callCount, 5);
-      expect(recordedDelays, hasLength(4)); // delays after attempts 1, 2, 3, 4
-      expect(recordedDelays.map((d) => d.inSeconds), [2, 4, 8, 16]);
+      check(callCount).equals(5);
+      check(recordedDelays).length.equals(4); // delays after attempts 1, 2, 3, 4
+      check(recordedDelays.map((d) => d.inSeconds).toList()).deepEquals([2, 4, 8, 16]);
     });
 
     test('throws HttpException on non-200 / non-429 server errors', () async {
@@ -416,23 +389,17 @@ void main() {
         delay: (duration) async {},
       );
 
-      await expectLater(
-        provider.translate(
+      try {
+        await provider.translate(
           strings: {'key': 'value'},
           targetLanguage: 'pt',
           config: config,
-        ),
-        throwsA(
-          isA<HttpException>().having(
-            (e) => e.message,
-            'message',
-            allOf(
-              contains('Failed after 5 retries with status 500'),
-              contains('Internal Server Error'),
-            ),
-          ),
-        ),
-      );
+        );
+        fail('Expected HttpException');
+      } on HttpException catch (e) {
+        check(e.message).contains('Failed after 5 retries with status 500');
+        check(e.message).contains('Internal Server Error');
+      }
     });
 
     test(
@@ -455,14 +422,16 @@ void main() {
 
         final provider = GeminiProvider(httpClient: mockClient);
 
-        await expectLater(
-          provider.translate(
+        try {
+          await provider.translate(
             strings: {'key': 'value'},
             targetLanguage: 'pt',
             config: config,
-          ),
-          throwsA(isA<FormatException>()),
-        );
+          );
+          fail('Expected FormatException');
+        } on FormatException catch (_) {
+          // Success
+        }
       },
     );
 
@@ -473,7 +442,7 @@ void main() {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
-          expect(prompt, contains('"pt_BR" (Brazilian Portuguese)'));
+          check(prompt).contains('"pt_BR" (Brazilian Portuguese)');
 
           final mockResponseBody = {
             'candidates': [
@@ -514,8 +483,8 @@ void main() {
         final mockClientRegional = MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           final prompt = body['contents'][0]['parts'][0]['text'] as String;
-          expect(prompt, contains('olá_regional'));
-          expect(prompt, isNot(contains('olá_base')));
+          check(prompt).contains('olá_regional');
+          check(prompt).not((it) => it.contains('olá_base'));
 
           return http.Response(
             jsonEncode({
@@ -546,8 +515,8 @@ void main() {
         final mockClientFallback = MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           final prompt = body['contents'][0]['parts'][0]['text'] as String;
-          expect(prompt, contains('olá_base'));
-          expect(prompt, isNot(contains('olá_regional')));
+          check(prompt).contains('olá_base');
+          check(prompt).not((it) => it.contains('olá_regional'));
 
           return http.Response(
             jsonEncode({

@@ -2,56 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:arb_ai/arb_ai.dart';
 import 'package:arb_ai/src/cli/logger.dart';
+import 'package:checks/checks.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-class MockTranslationProvider implements TranslationProvider {
-  final Function onTranslate;
-  final bool failValidation;
-
-  MockTranslationProvider(this.onTranslate, {this.failValidation = false});
-
-  @override
-  void validateEnvironment(ArbAiConfig config) {
-    if (failValidation) {
-      throw StateError('API key not found');
-    }
-  }
-
-  @override
-  Future<Map<String, String>> translate({
-    required Map<String, String> strings,
-    required String targetLanguage,
-    required ArbAiConfig config,
-    Map<String, String>? descriptions,
-    Map<String, Map<String, dynamic>>? placeholders,
-    Map<String, String>? retryFeedback,
-  }) async {
-    dynamic result;
-    try {
-      result = await onTranslate(
-        strings,
-        targetLanguage,
-        config,
-        descriptions,
-        placeholders,
-        retryFeedback,
-      );
-    } catch (_) {
-      try {
-        result = await onTranslate(
-          strings,
-          targetLanguage,
-          config,
-          descriptions,
-          placeholders,
-        );
-      } catch (_) {
-        result = await onTranslate(strings, targetLanguage, config);
-      }
-    }
-    return Map<String, String>.from(result as Map);
-  }
-}
+class MockTranslationProvider extends Mock implements TranslationProvider {}
+class FakeArbAiConfig extends Fake implements ArbAiConfig {}
 
 /// A silent logger to avoid cluttering test outputs.
 class SilentLogger extends Logger {
@@ -70,6 +26,10 @@ class SilentLogger extends Logger {
 }
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(FakeArbAiConfig());
+  });
+
   group('ArbAiOrchestrator Path Resolution', () {
     final orchestrator = ArbAiOrchestrator(
       config: ArbAiConfig.defaults(),
@@ -82,7 +42,7 @@ void main() {
         'pt',
         'en',
       );
-      expect(file.path, equals('/path/to/app_pt.arb'));
+      check(file.path).equals('/path/to/app_pt.arb');
     });
 
     test(
@@ -93,14 +53,14 @@ void main() {
           'pt',
           'en_US',
         );
-        expect(file.path, equals('/path/to/intl_pt.arb'));
+        check(file.path).equals('/path/to/intl_pt.arb');
       },
     );
 
     test('getTargetFile falls back if source lacks matching locale suffix', () {
       // app.arb with target 'pt' becomes app_pt.arb
       final file = orchestrator.getTargetFile('/path/to/app.arb', 'pt', 'en');
-      expect(file.path, equals('/path/to/app_pt.arb'));
+      check(file.path).equals('/path/to/app_pt.arb');
     });
   });
 
@@ -154,22 +114,14 @@ void main() {
         );
 
         final success = await orchestrator.run();
-        expect(success, isTrue);
+        check(success).isTrue();
       },
     );
 
     test(
       'performs dry-run without hitting provider or writing files',
       () async {
-        var providerCalled = false;
-        final provider = MockTranslationProvider((
-          Map<String, String> strings,
-          String targetLanguage,
-          ArbAiConfig config,
-        ) async {
-          providerCalled = true;
-          return <String, String>{};
-        });
+        final provider = MockTranslationProvider();
 
         final orchestrator = ArbAiOrchestrator(
           config: testConfig,
@@ -178,15 +130,23 @@ void main() {
         );
 
         final success = await orchestrator.run(dryRun: true);
-        expect(success, isTrue);
-        expect(providerCalled, isFalse);
+        check(success).isTrue();
+        
+        verifyNever(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            ));
 
         final targetFile = orchestrator.getTargetFile(
           sourceFile.path,
           'pt',
           'en',
         );
-        expect(targetFile.existsSync(), isFalse);
+        check(targetFile.existsSync()).isFalse();
       },
     );
 
@@ -199,7 +159,7 @@ void main() {
         );
 
         final success = await orchestrator.run(check: true);
-        expect(success, isFalse); // translations are missing
+        check(success).isFalse(); // translations are missing
       },
     );
 
@@ -237,15 +197,13 @@ void main() {
         );
 
         final success = await orchestrator.run(check: true);
-        expect(success, isTrue);
+        check(success).isTrue();
       },
     );
 
     test('fails fast and throws StateError if environment validation fails', () async {
-      final provider = MockTranslationProvider(
-        (strings, targetLanguage, config, d, p) async => <String, String>{},
-        failValidation: true,
-      );
+      final provider = MockTranslationProvider();
+      when(() => provider.validateEnvironment(any())).thenThrow(StateError('API key not found'));
 
       final orchestrator = ArbAiOrchestrator(
         config: testConfig,
@@ -253,23 +211,31 @@ void main() {
         logger: const SilentLogger(),
       );
 
-      expect(
-        () => orchestrator.run(),
-        throwsA(isA<StateError>()),
-      );
+      try {
+        await orchestrator.run();
+        fail('Expected StateError');
+      } on StateError catch (_) {
+        // Success
+      }
     });
 
     test(
       'successfully translates, validates ICU, and writes deterministic output',
       () async {
-        final provider = MockTranslationProvider((
-          Map<String, String> strings,
-          String targetLanguage,
-          ArbAiConfig config,
-        ) async {
-          expect(targetLanguage, equals('pt'));
-          expect(strings, contains('welcome'));
-          expect(strings, contains('inbox'));
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((invocation) async {
+          final targetLanguage = invocation.namedArguments[#targetLanguage] as String;
+          final strings = invocation.namedArguments[#strings] as Map<String, String>;
+          check(targetLanguage).equals('pt');
+          check(strings.keys).contains('welcome');
+          check(strings.keys).contains('inbox');
 
           return <String, String>{
             'welcome': 'Bem-vindo, {name}!',
@@ -285,34 +251,32 @@ void main() {
         );
 
         final success = await orchestrator.run();
-        expect(success, isTrue);
+        check(success).isTrue();
 
         final targetFile = File('${tempDir.path}/app_pt.arb');
-        expect(targetFile.existsSync(), isTrue);
+        check(targetFile.existsSync()).isTrue();
 
         final targetContent = targetFile.readAsStringSync();
         final targetJson = jsonDecode(targetContent) as Map<String, dynamic>;
 
-        expect(targetJson['@@locale'], equals('pt'));
-        expect(targetJson['welcome'], equals('Bem-vindo, {name}!'));
-        expect(
-          targetJson['inbox'],
-          equals('{count, plural, =0{Sem mensagens} other{{count} mensagens}}'),
-        );
+        check(targetJson['@@locale']).equals('pt');
+        check(targetJson['welcome']).equals('Bem-vindo, {name}!');
+        check(
+          targetJson['inbox']
+        ).equals('{count, plural, =0{Sem mensagens} other{{count} mensagens}}');
         // Determinism test: should have no @welcome metadata
-        expect(targetJson.containsKey('@welcome'), isFalse);
+        check(targetJson.containsKey('@welcome')).isFalse();
 
         // Verify state manager updated state
         final manager = ArbStateManager(stateFile);
-        expect(
+        check(
           manager.isUpToDate(
             targetLanguage: 'pt',
             key: 'welcome',
             sourceValue: 'Welcome, {name}!',
             targetArb: ArbFile.parse(targetContent),
-          ),
-          isTrue,
-        );
+          )
+        ).isTrue();
       },
     );
 
@@ -322,16 +286,17 @@ void main() {
         var callCount = 0;
         Map<String, String>? receivedRetryFeedback;
 
-        final provider = MockTranslationProvider((
-          Map<String, String> strings,
-          String targetLanguage,
-          ArbAiConfig config,
-          Map<String, String>? descriptions,
-          Map<String, Map<String, dynamic>>? placeholders,
-          Map<String, String>? retryFeedback,
-        ) async {
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((invocation) async {
           callCount++;
-          receivedRetryFeedback = retryFeedback;
+          receivedRetryFeedback = invocation.namedArguments[#retryFeedback] as Map<String, String>?;
           if (callCount == 1) {
             // Return a translation missing placeholder {name}
             return {
@@ -355,14 +320,11 @@ void main() {
         );
 
         final success = await orchestrator.run();
-        expect(success, isTrue);
-        expect(callCount, 2);
+        check(success).isTrue();
+        check(callCount).equals(2);
 
-        expect(receivedRetryFeedback, isNotNull);
-        expect(
-          receivedRetryFeedback!['welcome'],
-          contains('Missing placeholder variables: {name}'),
-        );
+        check(receivedRetryFeedback).isNotNull();
+        check(receivedRetryFeedback!['welcome'] as String).contains('Missing placeholder variables: {name}');
       },
     );
 
@@ -370,11 +332,15 @@ void main() {
       'retries on validation failure and succeeds if subsequent attempt is valid',
       () async {
         var callCount = 0;
-        final provider = MockTranslationProvider((
-          strings,
-          targetLanguage,
-          config,
-        ) async {
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((_) async {
           callCount++;
           if (callCount == 1) {
             // Return a translation missing placeholder {name}
@@ -395,13 +361,13 @@ void main() {
         );
 
         final success = await orchestrator.run();
-        expect(success, isTrue);
-        expect(callCount, 2);
+        check(success).isTrue();
+        check(callCount).equals(2);
 
         final targetFile = File('${tempDir.path}/app_pt.arb');
         final targetJson =
             jsonDecode(targetFile.readAsStringSync()) as Map<String, dynamic>;
-        expect(targetJson['welcome'], equals('Bem-vindo, {name}!'));
+        check(targetJson['welcome']).equals('Bem-vindo, {name}!');
       },
     );
 
@@ -409,11 +375,15 @@ void main() {
       'throws FormatException if ICU validation keeps failing after maximum retries',
       () async {
         var callCount = 0;
-        final provider = MockTranslationProvider((
-          strings,
-          targetLanguage,
-          config,
-        ) async {
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((_) async {
           callCount++;
           return {
             'welcome': 'Bem-vindo!', // missing {name}
@@ -429,8 +399,8 @@ void main() {
         );
 
         final success = await orchestrator.run();
-        expect(success, isFalse);
-        expect(callCount, 3); // maxRetries = 3
+        check(success).isFalse();
+        check(callCount).equals(3); // maxRetries = 3
       },
     );
 
@@ -451,13 +421,16 @@ void main() {
         );
 
         var providerCalledWithLogo = false;
-        final provider = MockTranslationProvider((
-          Map<String, String> strings,
-          String targetLanguage,
-          ArbAiConfig config,
-          Map<String, String>? descriptions,
-          Map<String, Map<String, dynamic>>? placeholders,
-        ) async {
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((invocation) async {
+          final strings = invocation.namedArguments[#strings] as Map<String, String>;
           if (strings.containsKey('logo_path')) {
             providerCalledWithLogo = true;
           }
@@ -471,23 +444,17 @@ void main() {
         );
 
         final success = await orchestrator.run();
-        expect(success, isTrue);
-        expect(
-          providerCalledWithLogo,
-          isFalse,
-        ); // Logo was not translated by the AI
+        check(success).isTrue();
+        check(providerCalledWithLogo).isFalse(); // Logo was not translated by the AI
 
         // 2. Assert logo_path was copied directly to target arb file
         final targetFile = File('${tempDir.path}/app_pt.arb');
-        expect(targetFile.existsSync(), isTrue);
+        check(targetFile.existsSync()).isTrue();
         final targetJson =
             jsonDecode(targetFile.readAsStringSync()) as Map<String, dynamic>;
 
-        expect(targetJson['welcome'], equals('Bem-vindo!'));
-        expect(
-          targetJson['logo_path'],
-          equals('images/logo.png'),
-        ); // Kept original value
+        check(targetJson['welcome']).equals('Bem-vindo!');
+        check(targetJson['logo_path']).equals('images/logo.png'); // Kept original value
       },
     );
 
@@ -513,15 +480,17 @@ void main() {
         Map<String, String>? receivedDescriptions;
         Map<String, Map<String, dynamic>>? receivedPlaceholders;
 
-        final provider = MockTranslationProvider((
-          Map<String, String> strings,
-          String targetLanguage,
-          ArbAiConfig config,
-          Map<String, String>? descriptions,
-          Map<String, Map<String, dynamic>>? placeholders,
-        ) async {
-          receivedDescriptions = descriptions;
-          receivedPlaceholders = placeholders;
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((invocation) async {
+          receivedDescriptions = invocation.namedArguments[#descriptions] as Map<String, String>?;
+          receivedPlaceholders = invocation.namedArguments[#placeholders] as Map<String, Map<String, dynamic>>?;
           return {'welcome': 'Bem-vindo, {name}!'};
         });
 
@@ -532,22 +501,14 @@ void main() {
         );
 
         final success = await orchestrator.run();
-        expect(success, isTrue);
+        check(success).isTrue();
 
-        expect(receivedDescriptions, isNotNull);
-        expect(
-          receivedDescriptions!['welcome'],
-          equals('Homepage greeting message'),
-        );
-        expect(receivedPlaceholders, isNotNull);
-        expect(
-          receivedPlaceholders!['welcome']!['name']['description'],
-          equals('User display name'),
-        );
-        expect(
-          receivedPlaceholders!['welcome']!['name']['example'],
-          equals('Alice'),
-        );
+        check(receivedDescriptions).isNotNull();
+        check(receivedDescriptions!['welcome']).equals('Homepage greeting message');
+        
+        check(receivedPlaceholders).isNotNull();
+        check(receivedPlaceholders!['welcome']!['name']['description']).equals('User display name');
+        check(receivedPlaceholders!['welcome']!['name']['example']).equals('Alice');
       },
     );
     test('respects batchSize by dividing translation into chunks', () async {
@@ -565,13 +526,16 @@ void main() {
       final configWithBatchSize2 = testConfig.copyWith(batchSize: 2);
       var chunkSizes = <int>[];
 
-      final provider = MockTranslationProvider((
-        Map<String, String> strings,
-        String targetLanguage,
-        ArbAiConfig config,
-        Map<String, String>? descriptions,
-        Map<String, Map<String, dynamic>>? placeholders,
-      ) async {
+      final provider = MockTranslationProvider();
+      when(() => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          )).thenAnswer((invocation) async {
+        final strings = invocation.namedArguments[#strings] as Map<String, String>;
         chunkSizes.add(strings.length);
         return strings.map((key, value) => MapEntry(key, 'Translated $value'));
       });
@@ -583,24 +547,32 @@ void main() {
       );
 
       final success = await orchestrator.run();
-      expect(success, isTrue);
+      check(success).isTrue();
 
-      expect(chunkSizes.length, equals(3));
-      expect(chunkSizes[0], equals(2));
-      expect(chunkSizes[1], equals(2));
-      expect(chunkSizes[2], equals(1));
+      check(chunkSizes).length.equals(3);
+      check(chunkSizes[0]).equals(2);
+      check(chunkSizes[1]).equals(2);
+      check(chunkSizes[2]).equals(1);
 
       final targetFile = File('${tempDir.path}/app_pt.arb');
       final targetJson =
           jsonDecode(targetFile.readAsStringSync()) as Map<String, dynamic>;
-      expect(targetJson['key5'], equals('Translated Five'));
+      check(targetJson['key5']).equals('Translated Five');
     });
 
     test(
       'clean option deletes the cached state file and forces re-translation',
       () async {
         var callCount = 0;
-        final provider = MockTranslationProvider((s, t, c, d, p) async {
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((_) async {
           callCount++;
           return {
             'welcome': 'Bem-vindo, {name}!',
@@ -616,23 +588,20 @@ void main() {
         );
 
         await orchestrator.run();
-        expect(callCount, 1);
+        check(callCount).equals(1);
 
         // Run again: should be in-sync
         await orchestrator.run();
-        expect(callCount, 1);
+        check(callCount).equals(1);
 
         // Run with clean: true: should delete cache, re-translate, and recreate cache
         final stateFile = File('${tempDir.path}/.arb_ai_state.json');
-        expect(stateFile.existsSync(), isTrue);
+        check(stateFile.existsSync()).isTrue();
 
         final success = await orchestrator.run(clean: true);
-        expect(success, isTrue);
-        expect(callCount, 2); // incremented because cache was deleted
-        expect(
-          stateFile.existsSync(),
-          isTrue,
-        ); // Recreated at the end of the run
+        check(success).isTrue();
+        check(callCount).equals(2); // incremented because cache was deleted
+        check(stateFile.existsSync()).isTrue(); // Recreated at the end of the run
       },
     );
 
@@ -640,13 +609,15 @@ void main() {
       'force option bypasses the state cache and forces re-translation',
       () async {
         var callCount = 0;
-        final provider = MockTranslationProvider((
-          strings,
-          targetLanguage,
-          config,
-          d,
-          p,
-        ) async {
+        final provider = MockTranslationProvider();
+        when(() => provider.translate(
+              strings: any(named: 'strings'),
+              targetLanguage: any(named: 'targetLanguage'),
+              config: any(named: 'config'),
+              descriptions: any(named: 'descriptions'),
+              placeholders: any(named: 'placeholders'),
+              retryFeedback: any(named: 'retryFeedback'),
+            )).thenAnswer((_) async {
           callCount++;
           return {
             'welcome': 'Bem-vindo, {name}!',
@@ -663,18 +634,18 @@ void main() {
 
         // First run: translates and creates cache
         var success = await orchestrator.run();
-        expect(success, isTrue);
-        expect(callCount, 1);
+        check(success).isTrue();
+        check(callCount).equals(1);
 
         // Second run: should be in-sync, provider not called
         success = await orchestrator.run();
-        expect(success, isTrue);
-        expect(callCount, 1); // still 1
+        check(success).isTrue();
+        check(callCount).equals(1); // still 1
 
         // Third run with force: true: should translate again
         success = await orchestrator.run(force: true);
-        expect(success, isTrue);
-        expect(callCount, 2); // incremented!
+        check(success).isTrue();
+        check(callCount).equals(2); // incremented!
       },
     );
   });

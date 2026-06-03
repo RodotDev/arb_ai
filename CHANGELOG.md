@@ -32,7 +32,3 @@
 - Rigid ICU validation supporting plural forms and CLDR rules across languages (Polish, Arabic, Portuguese, Russian, and more).
 - Auto-healing translation retry loop on failing ICU parser outputs.
 - Deterministic ARB writer for clean, git-friendly output file styling.
-
-[Unreleased]: https://github.com/RodotDev/arb_ai/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/RodotDev/arb_ai/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/RodotDev/arb_ai/releases/tag/v0.1.0

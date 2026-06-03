@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:checks/checks.dart';
 import 'package:arb_ai/arb_ai.dart';
 import 'package:test/test.dart';
 
@@ -6,15 +7,15 @@ void main() {
   group('ConfigParser Tests', () {
     test('parse() with empty yaml returns defaults', () {
       final config = ConfigParser.parse('');
-      expect(config.provider, equals('gemini'));
-      expect(config.apiKeyEnv, equals('ARB_AI_API_KEY'));
-      expect(config.model, equals('gemini-2.5-flash'));
-      expect(config.sourceArb, equals('lib/l10n/app_en.arb'));
-      expect(config.targets, isEmpty);
-      expect(config.glossary, isEmpty);
-      expect(config.doNotTranslate, isEmpty);
-      expect(config.tone, isNull);
-      expect(config.batchSize, equals(100));
+      check(config.provider).equals('gemini');
+      check(config.apiKeyEnv).equals('ARB_AI_API_KEY');
+      check(config.model).equals('gemini-2.5-flash');
+      check(config.sourceArb).equals('lib/l10n/app_en.arb');
+      check(config.targets).isEmpty();
+      check(config.glossary).isEmpty();
+      check(config.doNotTranslate).isEmpty();
+      check(config.tone).isNull();
+      check(config.batchSize).equals(100);
     });
 
     test('parse() with valid overrides parses correctly', () {
@@ -40,93 +41,66 @@ tone: formal
 batch_size: 10
 ''';
       final config = ConfigParser.parse(yaml);
-      expect(config.provider, equals('openai'));
-      expect(config.apiKeyEnv, equals('CUSTOM_KEY'));
-      expect(config.model, equals('gpt-4'));
-      expect(config.baseUrl, equals('https://api.openai.com/v1'));
-      expect(config.sourceArb, equals('l10n/source.arb'));
-      expect(config.targets, equals(['pt', 'es']));
-      expect(
-        config.glossary,
-        equals({
-          'pt': {'hello': 'oi', 'world': 'mundo'},
-          'es': {'hello': 'hola'},
-        }),
-      );
-      expect(config.doNotTranslate, equals(['Flutter', 'Dart']));
-      expect(config.tone, equals('formal'));
-      expect(config.batchSize, equals(10));
+      check(config.provider).equals('openai');
+      check(config.apiKeyEnv).equals('CUSTOM_KEY');
+      check(config.model).equals('gpt-4');
+      check(config.baseUrl).equals('https://api.openai.com/v1');
+      check(config.sourceArb).equals('l10n/source.arb');
+      check(config.targets).deepEquals(['pt', 'es']);
+      check(config.glossary).deepEquals({
+        'pt': {'hello': 'oi', 'world': 'mundo'},
+        'es': {'hello': 'hola'},
+      });
+      check(config.doNotTranslate).deepEquals(['Flutter', 'Dart']);
+      check(config.tone).equals('formal');
+      check(config.batchSize).equals(10);
     });
 
     test('parse() throws FormatException on invalid provider', () {
-      expect(
-        () => ConfigParser.parse('provider: claude'),
-        throwsA(isA<FormatException>()),
-      );
+      check(() => ConfigParser.parse('provider: claude')).throws<FormatException>();
     });
 
     test('parse() throws FormatException on invalid targets format', () {
-      expect(
-        () => ConfigParser.parse('targets: pt'),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => ConfigParser.parse('''
+      check(() => ConfigParser.parse('targets: pt')).throws<FormatException>();
+      check(() => ConfigParser.parse('''
 targets:
   - pt
   - 123
-'''),
-        throwsA(isA<FormatException>()),
-      );
+''')).throws<FormatException>();
     });
 
     test('parse() throws FormatException on invalid glossary format', () {
-      expect(
-        () => ConfigParser.parse('''
+      check(() => ConfigParser.parse('''
 glossary:
   - hello
   - world
-'''),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => ConfigParser.parse('''
+''')).throws<FormatException>();
+      check(() => ConfigParser.parse('''
 glossary:
   pt: hello
-'''),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => ConfigParser.parse('''
+''')).throws<FormatException>();
+      check(() => ConfigParser.parse('''
 glossary:
   pt:
     hello: 123
-'''),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => ConfigParser.parse('''
+''')).throws<FormatException>();
+      check(() => ConfigParser.parse('''
 glossary:
   pt:
     123: hello
-'''),
-        throwsA(isA<FormatException>()),
-      );
+''')).throws<FormatException>();
     });
 
     test(
       'parse() throws FormatException on invalid do_not_translate format',
       () {
-        expect(
-          () => ConfigParser.parse('do_not_translate: Flutter'),
-          throwsA(isA<FormatException>()),
-        );
+        check(() => ConfigParser.parse('do_not_translate: Flutter')).throws<FormatException>();
       },
     );
 
     test('parseFile() returns default config when file does not exist', () {
       final config = ConfigParser.parseFile(File('does_not_exist.yaml'));
-      expect(config.provider, equals('gemini'));
+      check(config.provider).equals('gemini');
     });
 
     test('parse() infers sourceArb from l10n.yaml if omitted', () {
@@ -137,7 +111,7 @@ template-arb-file: my_app_en.arb
 ''');
       try {
         final config = ConfigParser.parse('provider: gemini');
-        expect(config.sourceArb, equals('src/localization/my_app_en.arb'));
+        check(config.sourceArb).equals('src/localization/my_app_en.arb');
       } finally {
         if (l10nFile.existsSync()) {
           l10nFile.deleteSync();
@@ -147,22 +121,13 @@ template-arb-file: my_app_en.arb
 
     test('parse() falls back to defaults when l10n.yaml is missing', () {
       final config = ConfigParser.parse('provider: gemini');
-      expect(config.sourceArb, equals('lib/l10n/app_en.arb'));
+      check(config.sourceArb).equals('lib/l10n/app_en.arb');
     });
 
     test('parse() throws FormatException on invalid batch_size format', () {
-      expect(
-        () => ConfigParser.parse('batch_size: -5'),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => ConfigParser.parse('batch_size: hello'),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => ConfigParser.parse('batch_size: 0'),
-        throwsA(isA<FormatException>()),
-      );
+      check(() => ConfigParser.parse('batch_size: -5')).throws<FormatException>();
+      check(() => ConfigParser.parse('batch_size: hello')).throws<FormatException>();
+      check(() => ConfigParser.parse('batch_size: 0')).throws<FormatException>();
     });
   });
 }

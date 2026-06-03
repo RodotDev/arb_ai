@@ -1,4 +1,5 @@
 import 'package:arb_ai/src/cli/command_runner.dart';
+import 'package:checks/checks.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -16,22 +17,22 @@ void main() {
         '--config',
         'custom.yaml',
       ]);
-      expect(results['dry-run'], isTrue);
-      expect(results['check'], isTrue);
-      expect(results['config'], equals('custom.yaml'));
+      check(results['dry-run'] as bool).isTrue();
+      check(results['check'] as bool).isTrue();
+      check(results['config']).equals('custom.yaml');
     });
 
     test('applies defaults correctly', () {
       final results = runner.parser.parse([]);
-      expect(results['dry-run'], isFalse);
-      expect(results['check'], isFalse);
-      expect(results['config'], equals('arb_ai.yaml'));
-      expect(results['help'], isFalse);
+      check(results['dry-run'] as bool).isFalse();
+      check(results['check'] as bool).isFalse();
+      check(results['config']).equals('arb_ai.yaml');
+      check(results['help'] as bool).isFalse();
     });
 
     test('parses help flag correctly', () {
       final results = runner.parser.parse(['-h']);
-      expect(results['help'], isTrue);
+      check(results['help'] as bool).isTrue();
     });
   });
 }
