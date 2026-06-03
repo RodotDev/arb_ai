@@ -10,6 +10,7 @@
 
 - **Flutter ARB Specification Compliance**: Parses and forwards resource descriptions and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for better contextual translation. Respects the ARB specification by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
 - **Smart Diffing for Cost Optimization**: Computes cryptographic MD5 hashes of source translation templates and tracks them locally in `.arb_ai_state.json`. It will only request translations for missing or modified keys, avoiding redundant API calls and keeping your AI translation costs minimal.
+- **Progressive Batch Saving**: Persists translations and state incrementally after each batch. If a translation run is interrupted, it can resume exactly where it left off without losing progress or incurring duplicate costs.
 - **ICU Parser & Validator**: Analyzes both source and target translation strings using a custom-built recursive descent parser. Validates that ICU placeholders, plurals, and select categories match, verifying target-language CLDR rules.
 - **Auto-Recovery Retry Loop**: Detects AI translation anomalies (like missing placeholders or incorrect syntax) and automatically retries translations up to 3 times to heal outputs before applying them to your local files.
 - **Git-Friendly Target Writer**: Serializes target files deterministically (alphabetical order or matching source order, fixed 2-space indentation, trailing newline) while omitting metadata in targets for clean, readable Git diffs.
@@ -38,8 +39,8 @@ provider: gemini
 # The environment variable to fetch your API Key
 api_key_env: ARB_AI_API_KEY
 
-# The model to use (default: gemini-3.5-flash)
-model: gemini-3.5-flash
+# The model to use (default: gemini-2.5-flash)
+model: gemini-2.5-flash
 
 # Source ARB template (optional)
 # If omitted, arb_ai dynamically infers it from your Flutter `l10n.yaml` file (combining `arb-dir` and `template-arb-file`). Falls back to 'lib/l10n/app_en.arb'.
@@ -73,9 +74,9 @@ do_not_translate:
   - Flutter
   - Dart
 
-# Maximum translation keys per single API request batch (optional, default: 25)
+# Maximum translation keys per single API request batch (optional, default: 100)
 # Reduce this if you hit strict API capacity/rate limit boundaries (TPM/RPM)
-batch_size: 25
+batch_size: 100
 ```
 
 ### 3. Expose your API Key
@@ -190,7 +191,7 @@ void main() async {
   const config = ArbAiConfig(
     provider: 'gemini',
     apiKeyEnv: 'ARB_AI_API_KEY',
-    model: 'gemini-3.5-flash',
+    model: 'gemini-2.5-flash',
     sourceArb: 'lib/l10n/app_en.arb',
     targets: ['pt', 'es', 'fr'],
     glossary: {
