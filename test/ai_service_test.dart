@@ -30,8 +30,12 @@ void main() {
     });
 
     test('throws ArgumentError on invalid maxKeys', () {
-      check(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: 0)).throws<ArgumentError>();
-      check(() => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: -1)).throws<ArgumentError>();
+      check(
+        () => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: 0),
+      ).throws<ArgumentError>();
+      check(
+        () => TranslationBatcher.chunk({'k1': 'v1'}, maxKeys: -1),
+      ).throws<ArgumentError>();
     });
   });
 
@@ -118,8 +122,10 @@ void main() {
         final mockClient = MockClient((request) async {
           check(request.url.scheme).equals('https');
           check(request.url.host).equals('generativelanguage.googleapis.com');
-          check(request.url.path).equals('/v1beta/models/gemini-3.5-flash:generateContent');
-          
+          check(
+            request.url.path,
+          ).equals('/v1beta/models/gemini-3.5-flash:generateContent');
+
           // The API key must be sent via header, never in the URL query string,
           // to avoid leaking it through logged URIs or exception messages.
           check(request.url.queryParameters.containsKey('key')).isFalse();
@@ -147,8 +153,12 @@ void main() {
           final responseSchema =
               genConfig['responseSchema'] as Map<String, dynamic>;
           check(responseSchema['type']).equals('OBJECT');
-          check((responseSchema['required'] as List).cast<String>()).contains('welcome');
-          check(responseSchema['properties']['welcome']['type']).equals('STRING');
+          check(
+            (responseSchema['required'] as List).cast<String>(),
+          ).contains('welcome');
+          check(
+            responseSchema['properties']['welcome']['type'],
+          ).equals('STRING');
 
           final mockResponseBody = {
             'candidates': [
@@ -219,7 +229,9 @@ void main() {
         final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
         check(prompt).contains('pl');
-        check(prompt).not((it) => it.contains('Strictly apply the following glossary mappings'));
+        check(prompt).not(
+          (it) => it.contains('Strictly apply the following glossary mappings'),
+        );
         check(prompt).not((it) => it.contains('hello'));
 
         final mockResponseBody = {
@@ -255,8 +267,12 @@ void main() {
           final prompt = body['contents'][0]['parts'][0]['text'] as String;
 
           // Check that placeholder and ICU preservation instructions are present
-          check(prompt).contains('Never translate placeholder or variable names.');
-          check(prompt).contains('For plural and select expressions, translate ONLY the human-readable');
+          check(
+            prompt,
+          ).contains('Never translate placeholder or variable names.');
+          check(prompt).contains(
+            'For plural and select expressions, translate ONLY the human-readable',
+          );
 
           // Check that the metadata is injected directly into responseSchema description
           final genConfig = body['generationConfig'] as Map<String, dynamic>;
@@ -265,9 +281,12 @@ void main() {
           final welcomeSchema =
               responseSchema['properties']['welcome'] as Map<String, dynamic>;
 
-          check(welcomeSchema['description'] as String).contains('Context: Welcome message shown at homepage.');
+          check(
+            welcomeSchema['description'] as String,
+          ).contains('Context: Welcome message shown at homepage.');
           check(welcomeSchema['description'] as String).contains(
-              'Placeholders info: {name} (desc: User\'s display name, example: John Doe)');
+            'Placeholders info: {name} (desc: User\'s display name, example: John Doe)',
+          );
 
           final mockResponseBody = {
             'candidates': [
@@ -375,8 +394,12 @@ void main() {
       }
 
       check(callCount).equals(5);
-      check(recordedDelays).length.equals(4); // delays after attempts 1, 2, 3, 4
-      check(recordedDelays.map((d) => d.inSeconds).toList()).deepEquals([2, 4, 8, 16]);
+      check(
+        recordedDelays,
+      ).length.equals(4); // delays after attempts 1, 2, 3, 4
+      check(
+        recordedDelays.map((d) => d.inSeconds).toList(),
+      ).deepEquals([2, 4, 8, 16]);
     });
 
     test('throws HttpException on non-200 / non-429 server errors', () async {

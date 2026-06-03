@@ -13,7 +13,9 @@ void main() {
     test('keeps an ordinary apostrophe as a literal', () {
       final nodes = IcuParser("L'utilisateur {name}").parse();
       check((nodes.first as LiteralNode).text).equals("L'utilisateur ");
-      check(nodes.whereType<PlaceholderNode>().map((n) => n.name)).deepEquals(['name']);
+      check(
+        nodes.whereType<PlaceholderNode>().map((n) => n.name),
+      ).deepEquals(['name']);
     });
 
     test('treats quoted braces as literal text, not a placeholder', () {
@@ -27,7 +29,9 @@ void main() {
         "{count, plural, one{'{'one'}'} other{many}}",
       ).parse();
       final plural = nodes.single as PluralNode;
-      check((plural.categories['one']!.single as LiteralNode).text).equals('{one}');
+      check(
+        (plural.categories['one']!.single as LiteralNode).text,
+      ).equals('{one}');
     });
 
     test('leniently runs an unterminated quote to the end of input', () {

@@ -57,44 +57,58 @@ batch_size: 10
     });
 
     test('parse() throws FormatException on invalid provider', () {
-      check(() => ConfigParser.parse('provider: claude')).throws<FormatException>();
+      check(
+        () => ConfigParser.parse('provider: claude'),
+      ).throws<FormatException>();
     });
 
     test('parse() throws FormatException on invalid targets format', () {
       check(() => ConfigParser.parse('targets: pt')).throws<FormatException>();
-      check(() => ConfigParser.parse('''
+      check(
+        () => ConfigParser.parse('''
 targets:
   - pt
   - 123
-''')).throws<FormatException>();
+'''),
+      ).throws<FormatException>();
     });
 
     test('parse() throws FormatException on invalid glossary format', () {
-      check(() => ConfigParser.parse('''
+      check(
+        () => ConfigParser.parse('''
 glossary:
   - hello
   - world
-''')).throws<FormatException>();
-      check(() => ConfigParser.parse('''
+'''),
+      ).throws<FormatException>();
+      check(
+        () => ConfigParser.parse('''
 glossary:
   pt: hello
-''')).throws<FormatException>();
-      check(() => ConfigParser.parse('''
+'''),
+      ).throws<FormatException>();
+      check(
+        () => ConfigParser.parse('''
 glossary:
   pt:
     hello: 123
-''')).throws<FormatException>();
-      check(() => ConfigParser.parse('''
+'''),
+      ).throws<FormatException>();
+      check(
+        () => ConfigParser.parse('''
 glossary:
   pt:
     123: hello
-''')).throws<FormatException>();
+'''),
+      ).throws<FormatException>();
     });
 
     test(
       'parse() throws FormatException on invalid do_not_translate format',
       () {
-        check(() => ConfigParser.parse('do_not_translate: Flutter')).throws<FormatException>();
+        check(
+          () => ConfigParser.parse('do_not_translate: Flutter'),
+        ).throws<FormatException>();
       },
     );
 
@@ -125,9 +139,15 @@ template-arb-file: my_app_en.arb
     });
 
     test('parse() throws FormatException on invalid batch_size format', () {
-      check(() => ConfigParser.parse('batch_size: -5')).throws<FormatException>();
-      check(() => ConfigParser.parse('batch_size: hello')).throws<FormatException>();
-      check(() => ConfigParser.parse('batch_size: 0')).throws<FormatException>();
+      check(
+        () => ConfigParser.parse('batch_size: -5'),
+      ).throws<FormatException>();
+      check(
+        () => ConfigParser.parse('batch_size: hello'),
+      ).throws<FormatException>();
+      check(
+        () => ConfigParser.parse('batch_size: 0'),
+      ).throws<FormatException>();
     });
   });
 }

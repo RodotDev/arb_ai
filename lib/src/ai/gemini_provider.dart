@@ -90,7 +90,8 @@ class GeminiProvider implements TranslationProvider {
       'target language — no more, no less — always including "other".',
     );
     final baseLanguage = targetLanguage.split(RegExp('[_-]'))[0].toLowerCase();
-    final requiredCategories = IcuValidator.cldrPluralCategories[targetLanguage] ??
+    final requiredCategories =
+        IcuValidator.cldrPluralCategories[targetLanguage] ??
         IcuValidator.cldrPluralCategories[baseLanguage];
     if (requiredCategories != null) {
       promptBuffer.writeln(
@@ -153,7 +154,7 @@ class GeminiProvider implements TranslationProvider {
         if (schemaDescBuffer.isNotEmpty) schemaDescBuffer.write(' ');
         schemaDescBuffer.write(
           'IMPORTANT: Previous translation attempt failed validation: $keyFeedback. '
-          'You MUST fix this error in your new translation.'
+          'You MUST fix this error in your new translation.',
         );
       }
 
@@ -296,8 +297,8 @@ class GeminiProvider implements TranslationProvider {
           await _delay(delayDuration);
           continue;
         } else if (response.statusCode == 500 ||
-                   response.statusCode == 502 ||
-                   response.statusCode == 503) {
+            response.statusCode == 502 ||
+            response.statusCode == 503) {
           attempt++;
           if (attempt >= maxRetries) {
             throw HttpException(

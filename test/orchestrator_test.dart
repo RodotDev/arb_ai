@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 class MockTranslationProvider extends Mock implements TranslationProvider {}
+
 class FakeArbAiConfig extends Fake implements ArbAiConfig {}
 
 /// A silent logger to avoid cluttering test outputs.
@@ -131,15 +132,17 @@ void main() {
 
         final success = await orchestrator.run(dryRun: true);
         check(success).isTrue();
-        
-        verifyNever(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            ));
+
+        verifyNever(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        );
 
         final targetFile = orchestrator.getTargetFile(
           sourceFile.path,
@@ -201,38 +204,47 @@ void main() {
       },
     );
 
-    test('fails fast and throws StateError if environment validation fails', () async {
-      final provider = MockTranslationProvider();
-      when(() => provider.validateEnvironment(any())).thenThrow(StateError('API key not found'));
+    test(
+      'fails fast and throws StateError if environment validation fails',
+      () async {
+        final provider = MockTranslationProvider();
+        when(
+          () => provider.validateEnvironment(any()),
+        ).thenThrow(StateError('API key not found'));
 
-      final orchestrator = ArbAiOrchestrator(
-        config: testConfig,
-        provider: provider,
-        logger: const SilentLogger(),
-      );
+        final orchestrator = ArbAiOrchestrator(
+          config: testConfig,
+          provider: provider,
+          logger: const SilentLogger(),
+        );
 
-      try {
-        await orchestrator.run();
-        fail('Expected StateError');
-      } on StateError catch (_) {
-        // Success
-      }
-    });
+        try {
+          await orchestrator.run();
+          fail('Expected StateError');
+        } on StateError catch (_) {
+          // Success
+        }
+      },
+    );
 
     test(
       'successfully translates, validates ICU, and writes deterministic output',
       () async {
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((invocation) async {
-          final targetLanguage = invocation.namedArguments[#targetLanguage] as String;
-          final strings = invocation.namedArguments[#strings] as Map<String, String>;
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((invocation) async {
+          final targetLanguage =
+              invocation.namedArguments[#targetLanguage] as String;
+          final strings =
+              invocation.namedArguments[#strings] as Map<String, String>;
           check(targetLanguage).equals('pt');
           check(strings.keys).contains('welcome');
           check(strings.keys).contains('inbox');
@@ -262,7 +274,7 @@ void main() {
         check(targetJson['@@locale']).equals('pt');
         check(targetJson['welcome']).equals('Bem-vindo, {name}!');
         check(
-          targetJson['inbox']
+          targetJson['inbox'],
         ).equals('{count, plural, =0{Sem mensagens} other{{count} mensagens}}');
         // Determinism test: should have no @welcome metadata
         check(targetJson.containsKey('@welcome')).isFalse();
@@ -275,7 +287,7 @@ void main() {
             key: 'welcome',
             sourceValue: 'Welcome, {name}!',
             targetArb: ArbFile.parse(targetContent),
-          )
+          ),
         ).isTrue();
       },
     );
@@ -287,16 +299,19 @@ void main() {
         Map<String, String>? receivedRetryFeedback;
 
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((invocation) async {
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((invocation) async {
           callCount++;
-          receivedRetryFeedback = invocation.namedArguments[#retryFeedback] as Map<String, String>?;
+          receivedRetryFeedback =
+              invocation.namedArguments[#retryFeedback] as Map<String, String>?;
           if (callCount == 1) {
             // Return a translation missing placeholder {name}
             return {
@@ -324,7 +339,9 @@ void main() {
         check(callCount).equals(2);
 
         check(receivedRetryFeedback).isNotNull();
-        check(receivedRetryFeedback!['welcome'] as String).contains('Missing placeholder variables: {name}');
+        check(
+          receivedRetryFeedback!['welcome'] as String,
+        ).contains('Missing placeholder variables: {name}');
       },
     );
 
@@ -333,14 +350,16 @@ void main() {
       () async {
         var callCount = 0;
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((_) async {
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((_) async {
           callCount++;
           if (callCount == 1) {
             // Return a translation missing placeholder {name}
@@ -376,14 +395,16 @@ void main() {
       () async {
         var callCount = 0;
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((_) async {
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((_) async {
           callCount++;
           return {
             'welcome': 'Bem-vindo!', // missing {name}
@@ -422,15 +443,18 @@ void main() {
 
         var providerCalledWithLogo = false;
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((invocation) async {
-          final strings = invocation.namedArguments[#strings] as Map<String, String>;
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((invocation) async {
+          final strings =
+              invocation.namedArguments[#strings] as Map<String, String>;
           if (strings.containsKey('logo_path')) {
             providerCalledWithLogo = true;
           }
@@ -445,7 +469,9 @@ void main() {
 
         final success = await orchestrator.run();
         check(success).isTrue();
-        check(providerCalledWithLogo).isFalse(); // Logo was not translated by the AI
+        check(
+          providerCalledWithLogo,
+        ).isFalse(); // Logo was not translated by the AI
 
         // 2. Assert logo_path was copied directly to target arb file
         final targetFile = File('${tempDir.path}/app_pt.arb');
@@ -454,7 +480,9 @@ void main() {
             jsonDecode(targetFile.readAsStringSync()) as Map<String, dynamic>;
 
         check(targetJson['welcome']).equals('Bem-vindo!');
-        check(targetJson['logo_path']).equals('images/logo.png'); // Kept original value
+        check(
+          targetJson['logo_path'],
+        ).equals('images/logo.png'); // Kept original value
       },
     );
 
@@ -481,16 +509,21 @@ void main() {
         Map<String, Map<String, dynamic>>? receivedPlaceholders;
 
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((invocation) async {
-          receivedDescriptions = invocation.namedArguments[#descriptions] as Map<String, String>?;
-          receivedPlaceholders = invocation.namedArguments[#placeholders] as Map<String, Map<String, dynamic>>?;
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((invocation) async {
+          receivedDescriptions =
+              invocation.namedArguments[#descriptions] as Map<String, String>?;
+          receivedPlaceholders =
+              invocation.namedArguments[#placeholders]
+                  as Map<String, Map<String, dynamic>>?;
           return {'welcome': 'Bem-vindo, {name}!'};
         });
 
@@ -504,11 +537,17 @@ void main() {
         check(success).isTrue();
 
         check(receivedDescriptions).isNotNull();
-        check(receivedDescriptions!['welcome']).equals('Homepage greeting message');
-        
+        check(
+          receivedDescriptions!['welcome'],
+        ).equals('Homepage greeting message');
+
         check(receivedPlaceholders).isNotNull();
-        check(receivedPlaceholders!['welcome']!['name']['description']).equals('User display name');
-        check(receivedPlaceholders!['welcome']!['name']['example']).equals('Alice');
+        check(
+          receivedPlaceholders!['welcome']!['name']['description'],
+        ).equals('User display name');
+        check(
+          receivedPlaceholders!['welcome']!['name']['example'],
+        ).equals('Alice');
       },
     );
     test('respects batchSize by dividing translation into chunks', () async {
@@ -527,15 +566,18 @@ void main() {
       var chunkSizes = <int>[];
 
       final provider = MockTranslationProvider();
-      when(() => provider.translate(
-            strings: any(named: 'strings'),
-            targetLanguage: any(named: 'targetLanguage'),
-            config: any(named: 'config'),
-            descriptions: any(named: 'descriptions'),
-            placeholders: any(named: 'placeholders'),
-            retryFeedback: any(named: 'retryFeedback'),
-          )).thenAnswer((invocation) async {
-        final strings = invocation.namedArguments[#strings] as Map<String, String>;
+      when(
+        () => provider.translate(
+          strings: any(named: 'strings'),
+          targetLanguage: any(named: 'targetLanguage'),
+          config: any(named: 'config'),
+          descriptions: any(named: 'descriptions'),
+          placeholders: any(named: 'placeholders'),
+          retryFeedback: any(named: 'retryFeedback'),
+        ),
+      ).thenAnswer((invocation) async {
+        final strings =
+            invocation.namedArguments[#strings] as Map<String, String>;
         chunkSizes.add(strings.length);
         return strings.map((key, value) => MapEntry(key, 'Translated $value'));
       });
@@ -565,14 +607,16 @@ void main() {
       () async {
         var callCount = 0;
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((_) async {
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((_) async {
           callCount++;
           return {
             'welcome': 'Bem-vindo, {name}!',
@@ -601,7 +645,9 @@ void main() {
         final success = await orchestrator.run(clean: true);
         check(success).isTrue();
         check(callCount).equals(2); // incremented because cache was deleted
-        check(stateFile.existsSync()).isTrue(); // Recreated at the end of the run
+        check(
+          stateFile.existsSync(),
+        ).isTrue(); // Recreated at the end of the run
       },
     );
 
@@ -610,14 +656,16 @@ void main() {
       () async {
         var callCount = 0;
         final provider = MockTranslationProvider();
-        when(() => provider.translate(
-              strings: any(named: 'strings'),
-              targetLanguage: any(named: 'targetLanguage'),
-              config: any(named: 'config'),
-              descriptions: any(named: 'descriptions'),
-              placeholders: any(named: 'placeholders'),
-              retryFeedback: any(named: 'retryFeedback'),
-            )).thenAnswer((_) async {
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            placeholders: any(named: 'placeholders'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((_) async {
           callCount++;
           return {
             'welcome': 'Bem-vindo, {name}!',

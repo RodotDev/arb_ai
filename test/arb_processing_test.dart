@@ -28,7 +28,9 @@ void main() {
 
       check(arbFile.locale).equals('en');
       check(arbFile.globalMetadata['@@context']).equals('Spike test');
-      check(arbFile.translations['welcomeMessage']).equals('Welcome back, {name}!');
+      check(
+        arbFile.translations['welcomeMessage'],
+      ).equals('Welcome back, {name}!');
       check(arbFile.translations['simpleKey']).equals('Hello World');
 
       final welcomeMeta = arbFile.metadata['welcomeMessage'];
@@ -44,8 +46,12 @@ void main() {
     test('throws FormatException on invalid formats', () {
       check(() => ArbFile.parse('invalid json')).throws<FormatException>();
       check(() => ArbFile.parse('[]')).throws<FormatException>();
-      check(() => ArbFile.parse('{"key": 123}')).throws<FormatException>(); // key must map to a String
-      check(() => ArbFile.parse('{"@key": "should be map"}')).throws<FormatException>();
+      check(
+        () => ArbFile.parse('{"key": 123}'),
+      ).throws<FormatException>(); // key must map to a String
+      check(
+        () => ArbFile.parse('{"@key": "should be map"}'),
+      ).throws<FormatException>();
     });
   });
 
@@ -94,12 +100,14 @@ void main() {
       const srcInbox = '{count, plural, =0{Zero} other{Other}}';
 
       // 1. Missing keys: targetArb is null
-      check(manager.isUpToDate(
-        targetLanguage: 'pt',
-        key: 'welcomeMessage',
-        sourceValue: srcWelcome,
-        targetArb: null,
-      )).isFalse();
+      check(
+        manager.isUpToDate(
+          targetLanguage: 'pt',
+          key: 'welcomeMessage',
+          sourceValue: srcWelcome,
+          targetArb: null,
+        ),
+      ).isFalse();
 
       // Let's parse a target ArbFile representing the translations
       const targetArbContent = '''
@@ -111,12 +119,14 @@ void main() {
       final targetArb = ArbFile.parse(targetArbContent);
 
       // 2. Missing from state: key exists in target, but state has no record
-      check(manager.isUpToDate(
-        targetLanguage: 'pt',
-        key: 'welcomeMessage',
-        sourceValue: srcWelcome,
-        targetArb: targetArb,
-      )).isFalse();
+      check(
+        manager.isUpToDate(
+          targetLanguage: 'pt',
+          key: 'welcomeMessage',
+          sourceValue: srcWelcome,
+          targetArb: targetArb,
+        ),
+      ).isFalse();
 
       // Update state for welcomeMessage
       manager.updateState(
@@ -126,20 +136,24 @@ void main() {
       );
 
       // 3. Up to date: key exists in target, state has matching hash
-      check(manager.isUpToDate(
-        targetLanguage: 'pt',
-        key: 'welcomeMessage',
-        sourceValue: srcWelcome,
-        targetArb: targetArb,
-      )).isTrue();
+      check(
+        manager.isUpToDate(
+          targetLanguage: 'pt',
+          key: 'welcomeMessage',
+          sourceValue: srcWelcome,
+          targetArb: targetArb,
+        ),
+      ).isTrue();
 
       // 4. Outdated/modified: source string changes
-      check(manager.isUpToDate(
-        targetLanguage: 'pt',
-        key: 'welcomeMessage',
-        sourceValue: 'Welcome again, {name}!', // Modified source value
-        targetArb: targetArb,
-      )).isFalse();
+      check(
+        manager.isUpToDate(
+          targetLanguage: 'pt',
+          key: 'welcomeMessage',
+          sourceValue: 'Welcome again, {name}!', // Modified source value
+          targetArb: targetArb,
+        ),
+      ).isFalse();
 
       // 5. Test saving and reloading state
       manager.updateState(
@@ -161,12 +175,14 @@ void main() {
 }
 ''');
 
-      check(newManager.isUpToDate(
-        targetLanguage: 'pt',
-        key: 'inboxCount',
-        sourceValue: srcInbox,
-        targetArb: targetArbWithBoth,
-      )).isTrue();
+      check(
+        newManager.isUpToDate(
+          targetLanguage: 'pt',
+          key: 'inboxCount',
+          sourceValue: srcInbox,
+          targetArb: targetArbWithBoth,
+        ),
+      ).isTrue();
     });
   });
 
@@ -190,7 +206,9 @@ void main() {
         targetLanguage: 'pt',
       );
       check(res.isValid).isFalse();
-      check(res.error).isNotNull().contains('Missing placeholder variables: {name}');
+      check(
+        res.error,
+      ).isNotNull().contains('Missing placeholder variables: {name}');
     });
 
     test('fails when extra placeholders are introduced in target', () {
@@ -201,7 +219,9 @@ void main() {
         targetLanguage: 'pt',
       );
       check(res.isValid).isFalse();
-      check(res.error).isNotNull().contains('Unexpected placeholder variables: {extra}');
+      check(
+        res.error,
+      ).isNotNull().contains('Unexpected placeholder variables: {extra}');
     });
 
     test('fails when variables in complex expressions do not match', () {
@@ -213,7 +233,9 @@ void main() {
         targetLanguage: 'pt',
       );
       check(res.isValid).isFalse();
-      check(res.error).isNotNull().contains('Variable mismatch at expression 0');
+      check(
+        res.error,
+      ).isNotNull().contains('Variable mismatch at expression 0');
     });
 
     test('fails when complex structures do not match', () {
@@ -235,7 +257,9 @@ void main() {
         targetLanguage: 'pt',
       );
       check(res.isValid).isFalse();
-      check(res.error).isNotNull().contains('Missing mandatory "other" category');
+      check(
+        res.error,
+      ).isNotNull().contains('Missing mandatory "other" category');
     });
 
     test('enforces target-language CLDR plural rules for Polish', () {
@@ -250,8 +274,8 @@ void main() {
       );
       check(invalidPl.isValid).isFalse();
       check(invalidPl.error).isNotNull().contains(
-          'Missing required CLDR plural categories for language "pl": few, many',
-        );
+        'Missing required CLDR plural categories for language "pl": few, many',
+      );
 
       final validPl = IcuValidator.validate(
         key: 'inboxCount',
@@ -274,8 +298,8 @@ void main() {
       );
       check(invalidAr.isValid).isFalse();
       check(invalidAr.error).isNotNull().contains(
-          'Missing required CLDR plural categories for language "ar": zero, two, few, many',
-        );
+        'Missing required CLDR plural categories for language "ar": zero, two, few, many',
+      );
 
       final validAr = IcuValidator.validate(
         key: 'inboxCount',
@@ -299,14 +323,13 @@ void main() {
       );
       check(invalidSl.isValid).isFalse();
       check(invalidSl.error).isNotNull().contains(
-          'Missing required CLDR plural categories for language "sl": two, few',
-        );
+        'Missing required CLDR plural categories for language "sl": two, few',
+      );
 
       final validSl = IcuValidator.validate(
         key: 'inboxCount',
         source: source,
-        target:
-            '{count, plural, one{1} two{2} few{few} other{other}}',
+        target: '{count, plural, one{1} two{2} few{few} other{other}}',
         targetLanguage: 'sl',
       );
       check(validSl.isValid).isTrue();
