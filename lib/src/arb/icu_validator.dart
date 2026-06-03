@@ -416,7 +416,31 @@ class IcuValidator {
 
       // Enforce target-language CLDR plural rules
       if (sExpr.type == 'plural') {
-        final requiredCldr = cldrPluralCategories[targetLanguage];
+        if (tExpr.categories.contains('=1') &&
+            tExpr.categories.contains('one')) {
+          return ValidationResult.invalid(
+            'Conflict in plural expression for "${sExpr.varName}": cannot have both "=1" and "one" categories as they both map to the "one" parameter in Flutter l10n and cause ICU override warnings.',
+          );
+        }
+        if (tExpr.categories.contains('=0') &&
+            tExpr.categories.contains('zero')) {
+          return ValidationResult.invalid(
+            'Conflict in plural expression for "${sExpr.varName}": cannot have both "=0" and "zero" categories as they both map to the "zero" parameter in Flutter l10n and cause ICU override warnings.',
+          );
+        }
+        if (tExpr.categories.contains('=2') &&
+            tExpr.categories.contains('two')) {
+          return ValidationResult.invalid(
+            'Conflict in plural expression for "${sExpr.varName}": cannot have both "=2" and "two" categories as they both map to the "two" parameter in Flutter l10n and cause ICU override warnings.',
+          );
+        }
+
+        final baseLanguage = targetLanguage
+            .split(RegExp('[_-]'))[0]
+            .toLowerCase();
+        final requiredCldr =
+            cldrPluralCategories[targetLanguage] ??
+            cldrPluralCategories[baseLanguage];
         if (requiredCldr != null) {
           final missingCldr = requiredCldr.toSet().difference(tExpr.categories);
           if (missingCldr.isNotEmpty) {

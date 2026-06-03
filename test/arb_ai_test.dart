@@ -7,7 +7,7 @@ void main() {
     test('default configuration initializes correctly', () {
       final config = ArbAiConfig.defaults();
       check(config.provider).equals('gemini');
-      check(config.model).equals('gemini-2.5-flash');
+      check(config.model).equals('gemini-3.5-flash');
     });
   });
 }

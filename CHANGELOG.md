@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.1] - 2026-06-03
+
+### Added
+
+### Changed
+
+- Updated default model from `gemini-2.5-flash` to `gemini-3.5-flash` after demonstrating stability in real-world tests.
+
+### Fixed
+
+- Fixed ICU plural syntax warnings caused by overlapping categories (e.g., having both `=1` and `one`) in target translations.
+- Added base-language fallback (e.g., `pt` for `pt_BR`) for target locales to enforce CLDR category validations correctly.
+
 ## [0.2.0] - 2026-06-03
 
 ### Added

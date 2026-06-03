@@ -39,8 +39,8 @@ provider: gemini
 # The environment variable to fetch your API Key
 api_key_env: ARB_AI_API_KEY
 
-# The model to use (default: gemini-2.5-flash)
-model: gemini-2.5-flash
+# The model to use (default: gemini-3.5-flash)
+model: gemini-3.5-flash
 
 # Source ARB template (optional)
 # If omitted, arb_ai dynamically infers it from your Flutter `l10n.yaml` file (combining `arb-dir` and `template-arb-file`). Falls back to 'lib/l10n/app_en.arb'.
@@ -191,7 +191,7 @@ void main() async {
   const config = ArbAiConfig(
     provider: 'gemini',
     apiKeyEnv: 'ARB_AI_API_KEY',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.5-flash',
     sourceArb: 'lib/l10n/app_en.arb',
     targets: ['pt', 'es', 'fr'],
     glossary: {

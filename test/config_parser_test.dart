@@ -9,7 +9,7 @@ void main() {
       final config = ConfigParser.parse('');
       check(config.provider).equals('gemini');
       check(config.apiKeyEnv).equals('ARB_AI_API_KEY');
-      check(config.model).equals('gemini-2.5-flash');
+      check(config.model).equals('gemini-3.5-flash');
       check(config.sourceArb).equals('lib/l10n/app_en.arb');
       check(config.targets).isEmpty();
       check(config.glossary).isEmpty();

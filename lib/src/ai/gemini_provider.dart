@@ -89,6 +89,13 @@ class GeminiProvider implements TranslationProvider {
       '- For plurals, use exactly the CLDR plural categories required by the '
       'target language — no more, no less — always including "other".',
     );
+    promptBuffer.writeln(
+      '- Do not include both explicit and category-based selectors for the same numeric value '
+      'in the target translation (e.g., do not have both "=1" and "one", both "=0" and "zero", '
+      'or both "=2" and "two"). If the target language requires the "one" category, do not include '
+      '"=1" (use only "one"). If it requires "zero", do not include "=0". If it requires "two", '
+      'do not include "=2".',
+    );
     final baseLanguage = targetLanguage.split(RegExp('[_-]'))[0].toLowerCase();
     final requiredCategories =
         IcuValidator.cldrPluralCategories[targetLanguage] ??

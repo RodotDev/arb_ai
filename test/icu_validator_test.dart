@@ -82,4 +82,71 @@ void main() {
       check(result.isValid).isTrue();
     });
   });
+
+  group('IcuValidator plural category validation', () {
+    test('flags overlapping categories (=1 and one)', () {
+      final result = IcuValidator.validate(
+        key: 'cycles',
+        source: '{count, plural, =1{1 cycle} other{{count} cycles}}',
+        target:
+            '{count, plural, =1{1 цикл} one{{count} ciclo} few{{count} цикла} many{{count} циклов} other{{count} цикла}}',
+        targetLanguage: 'ru_RU',
+      );
+      check(result.isValid).isFalse();
+      check(
+        result.error,
+      ).isNotNull().contains('cannot have both "=1" and "one"');
+    });
+
+    test('flags overlapping categories (=0 and zero)', () {
+      final result = IcuValidator.validate(
+        key: 'cycles',
+        source: '{count, plural, =0{no cycles} other{{count} cycles}}',
+        target:
+            '{count, plural, =0{no cycles} zero{zero cycles} other{{count} cycles}}',
+        targetLanguage: 'ar',
+      );
+      check(result.isValid).isFalse();
+      check(
+        result.error,
+      ).isNotNull().contains('cannot have both "=0" and "zero"');
+    });
+
+    test('flags overlapping categories (=2 and two)', () {
+      final result = IcuValidator.validate(
+        key: 'cycles',
+        source: '{count, plural, =2{two cycles} other{{count} cycles}}',
+        target:
+            '{count, plural, =2{two cycles} two{two cycles} other{{count} cycles}}',
+        targetLanguage: 'ar',
+      );
+      check(result.isValid).isFalse();
+      check(
+        result.error,
+      ).isNotNull().contains('cannot have both "=2" and "two"');
+    });
+
+    test('validates regional languages with base language CLDR rules', () {
+      // ru_RU should fallback to ru and require ['one', 'few', 'many', 'other']
+      final invalidResult = IcuValidator.validate(
+        key: 'cycles',
+        source: '{count, plural, =1{1 cycle} other{{count} cycles}}',
+        target: '{count, plural, one{{count} цикл} other{{count} цикла}}',
+        targetLanguage: 'ru_RU',
+      );
+      check(invalidResult.isValid).isFalse();
+      check(invalidResult.error).isNotNull().contains(
+        'Missing required CLDR plural categories for language "ru_RU": few, many',
+      );
+
+      final validResult = IcuValidator.validate(
+        key: 'cycles',
+        source: '{count, plural, =1{1 cycle} other{{count} cycles}}',
+        target:
+            '{count, plural, one{{count} цикл} few{{count} цикла} many{{count} циклов} other{{count} цикла}}',
+        targetLanguage: 'ru_RU',
+      );
+      check(validResult.isValid).isTrue();
+    });
+  });
 }
