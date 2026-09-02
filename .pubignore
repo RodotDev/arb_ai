@@ -16,3 +16,7 @@ skills-lock.json
 
 # Development-only spikes and helper scripts
 tool/
+
+# Temporary directories and test coverage
+tmp/
+coverage/

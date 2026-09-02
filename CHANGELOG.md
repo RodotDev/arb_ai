@@ -1,8 +1,29 @@
 # Changelog
 
-## [0.2.1] - 2026-06-03
+## [0.3.0] - 2026-09-02
 
 ### Added
+
+- Automatic detection and pruning of obsolete/orphan keys from target `.arb` files and local state cache (`.arb_ai_state.json`) when keys are removed from the source ARB template.
+- Obsolete/deleted key diagnostics in `--check` and `--dry-run` modes.
+- Output sink customization in `Logger` (`outputSink`, `errorSink`) for isolated testing while preserving `const Logger()` compatibility.
+- Unit test coverage for `ArbAiCommandRunner.run()` exit codes and usage outputs.
+
+### Changed
+
+- Updated `ArbAiCommandRunner.run()` to return integer exit codes (`0`, `1`, `64`) instead of calling `exit()` directly, enabling integration testing.
+- Standardized `Logger` on `stdout.writeln` and `stderr.writeln`.
+- Aligned `batch_size` default documentation and example in `example/arb_ai_example.yaml` to `100`.
+- Updated GitHub Actions publish workflow to `actions/checkout@v6` for Node 24 runtime alignment.
+- Upgraded dependencies: `yaml` to `^3.1.4`, `http` to `^1.6.0`, and `test` to `^1.31.2`, along with 13 transitive dependencies.
+- Added `tmp/` and `coverage/` to `.gitignore` and `.pubignore`.
+
+### Fixed
+
+- Fixed target translation files accumulating deleted/obsolete keys indefinitely.
+- Fixed `ArbAiConfig` equality and hash code calculation to adhere to Dart's `hashCode` contract (`a == b => a.hashCode == b.hashCode`) using deep collection comparison instead of `.toString()`.
+
+## [0.2.1] - 2026-06-03
 
 ### Changed
 

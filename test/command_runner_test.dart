@@ -1,4 +1,5 @@
 import 'package:arb_ai/src/cli/command_runner.dart';
+import 'package:arb_ai/src/cli/logger.dart';
 import 'package:checks/checks.dart';
 import 'package:test/test.dart';
 
@@ -33,6 +34,41 @@ void main() {
     test('parses help flag correctly', () {
       final results = runner.parser.parse(['-h']);
       check(results['help'] as bool).isTrue();
+    });
+
+    test('run with --help returns 0 and outputs usage', () async {
+      final outBuffer = StringBuffer();
+      final testRunner = ArbAiCommandRunner(
+        logger: Logger(outputSink: outBuffer),
+      );
+
+      final exitCode = await testRunner.run(['--help']);
+      check(exitCode).equals(0);
+      check(outBuffer.toString()).contains('Usage: dart run arb_ai [options]');
+    });
+
+    test('run with invalid arguments returns 64', () async {
+      final errBuffer = StringBuffer();
+      final testRunner = ArbAiCommandRunner(
+        logger: Logger(errorSink: errBuffer),
+      );
+
+      final exitCode = await testRunner.run(['--non-existent-flag']);
+      check(exitCode).equals(64);
+      check(errBuffer.toString()).contains('Error parsing arguments');
+    });
+
+    test('run with missing source file returns 1', () async {
+      final errBuffer = StringBuffer();
+      final testRunner = ArbAiCommandRunner(
+        logger: Logger(errorSink: errBuffer),
+      );
+
+      final exitCode = await testRunner.run([
+        '--config',
+        'non_existent_config.yaml',
+      ]);
+      check(exitCode).equals(1);
     });
   });
 }

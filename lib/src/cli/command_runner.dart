@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 import 'dart:io';
 import 'package:args/args.dart';
 import '../config/config_parser.dart';
@@ -10,8 +9,11 @@ class ArbAiCommandRunner {
   /// The CLI options argument parser.
   final ArgParser parser = ArgParser();
 
+  /// The logger used for CLI output.
+  final Logger logger;
+
   /// Creates and configures a new [ArbAiCommandRunner] instance.
-  ArbAiCommandRunner() {
+  ArbAiCommandRunner({this.logger = const Logger()}) {
     parser
       ..addFlag(
         'dry-run',
@@ -53,21 +55,22 @@ class ArbAiCommandRunner {
 
   /// Displays the usage and instructions for the CLI.
   void printUsage() {
-    print('Usage: dart run arb_ai [options]\n');
-    print('AI-powered build-time translation of Flutter ARB files.\n');
-    print('Options:');
-    print(parser.usage);
+    logger.info('Usage: dart run arb_ai [options]\n');
+    logger.info('AI-powered build-time translation of Flutter ARB files.\n');
+    logger.info('Options:');
+    logger.info(parser.usage);
   }
 
   /// Entrypoint method to parse arguments and execute the workflow.
-  Future<void> run(List<String> args) async {
-    const logger = Logger();
+  ///
+  /// Returns the corresponding exit code (0 for success, 64 for usage error, 1 for runtime failure).
+  Future<int> run(List<String> args) async {
     try {
       final results = parser.parse(args);
 
       if (results['help'] as bool) {
         printUsage();
-        return;
+        return 0;
       }
 
       final dryRun = results['dry-run'] as bool;
@@ -93,13 +96,11 @@ class ArbAiCommandRunner {
         clean: clean,
       );
 
-      if (!success) {
-        exit(1);
-      }
+      return success ? 0 : 1;
     } on FormatException catch (e) {
       logger.error('Error parsing arguments: ${e.message}\n');
       printUsage();
-      exit(64); // Exit code 64 is standard for command line usage error.
+      return 64; // Exit code 64 is standard for command line usage error.
     } on StateError catch (e) {
       logger.error('Configuration Error: ${e.message}');
       logger.info(
@@ -107,10 +108,10 @@ class ArbAiCommandRunner {
         '\n  1. Set the environment variable in your shell (e.g., export ARB_AI_API_KEY="your_key")'
         '\n  2. Or add a local ".env" file in the root of your project containing: ARB_AI_API_KEY="your_key"\n',
       );
-      exit(1);
+      return 1;
     } catch (e) {
       logger.error('Unhandled error: $e');
-      exit(1);
+      return 1;
     }
   }
 }

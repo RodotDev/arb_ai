@@ -99,22 +99,60 @@ class ArbAiConfig {
           model == other.model &&
           baseUrl == other.baseUrl &&
           sourceArb == other.sourceArb &&
-          targets.toString() == other.targets.toString() &&
-          glossary.toString() == other.glossary.toString() &&
-          doNotTranslate.toString() == other.doNotTranslate.toString() &&
+          _listEquals(targets, other.targets) &&
+          _glossaryEquals(glossary, other.glossary) &&
+          _listEquals(doNotTranslate, other.doNotTranslate) &&
           tone == other.tone &&
           batchSize == other.batchSize;
 
   @override
-  int get hashCode =>
-      provider.hashCode ^
-      apiKeyEnv.hashCode ^
-      model.hashCode ^
-      baseUrl.hashCode ^
-      sourceArb.hashCode ^
-      targets.hashCode ^
-      glossary.hashCode ^
-      doNotTranslate.hashCode ^
-      tone.hashCode ^
-      batchSize.hashCode;
+  int get hashCode => Object.hash(
+    provider,
+    apiKeyEnv,
+    model,
+    baseUrl,
+    sourceArb,
+    Object.hashAll(targets),
+    Object.hashAll(doNotTranslate),
+    _hashGlossary(glossary),
+    tone,
+    batchSize,
+  );
+
+  static bool _listEquals(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static bool _glossaryEquals(
+    Map<String, Map<String, String>> a,
+    Map<String, Map<String, String>> b,
+  ) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      final bMap = b[entry.key];
+      if (bMap == null || entry.value.length != bMap.length) return false;
+      for (final subEntry in entry.value.entries) {
+        if (bMap[subEntry.key] != subEntry.value) return false;
+      }
+    }
+    return true;
+  }
+
+  static int _hashGlossary(Map<String, Map<String, String>> map) {
+    var hash = 0;
+    for (final entry in map.entries) {
+      var subHash = 0;
+      for (final subEntry in entry.value.entries) {
+        subHash ^= Object.hash(subEntry.key, subEntry.value);
+      }
+      hash ^= Object.hash(entry.key, subHash);
+    }
+    return hash;
+  }
 }

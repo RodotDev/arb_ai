@@ -696,5 +696,65 @@ void main() {
         check(callCount).equals(2); // incremented!
       },
     );
+
+    test(
+      'prunes obsolete/orphan keys from target files and state when deleted from source',
+      () async {
+        final targetFile = File('${tempDir.path}/app_pt.arb');
+        targetFile.writeAsStringSync(
+          jsonEncode({
+            '@@locale': 'pt',
+            'welcome': 'Bem-vindo, {name}!',
+            'inbox':
+                '{count, plural, =0{Sem mensagens} other{{count} mensagens}}',
+            'obsolete_key': 'Texto antigo que foi deletado do source',
+          }),
+        );
+
+        final stateManager = ArbStateManager(stateFile);
+        stateManager.updateState(
+          targetLanguage: 'pt',
+          key: 'welcome',
+          sourceValue: 'Welcome, {name}!',
+        );
+        stateManager.updateState(
+          targetLanguage: 'pt',
+          key: 'inbox',
+          sourceValue:
+              '{count, plural, =0{No messages} other{{count} messages}}',
+        );
+        stateManager.updateState(
+          targetLanguage: 'pt',
+          key: 'obsolete_key',
+          sourceValue: 'Old deleted text',
+        );
+        stateManager.save();
+
+        final provider = MockTranslationProvider();
+        final orchestrator = ArbAiOrchestrator(
+          config: testConfig,
+          provider: provider,
+          logger: const SilentLogger(),
+        );
+
+        final success = await orchestrator.run();
+        check(success).isTrue();
+
+        final updatedTarget = ArbFile.parseFile(targetFile);
+        check(updatedTarget.translations.containsKey('obsolete_key')).isFalse();
+        check(updatedTarget.translations.containsKey('welcome')).isTrue();
+        check(updatedTarget.translations.containsKey('inbox')).isTrue();
+
+        final reloadedState = ArbStateManager(stateFile);
+        check(
+          reloadedState.isUpToDate(
+            targetLanguage: 'pt',
+            key: 'obsolete_key',
+            sourceValue: 'Old deleted text',
+            targetArb: updatedTarget,
+          ),
+        ).isFalse();
+      },
+    );
   });
 }

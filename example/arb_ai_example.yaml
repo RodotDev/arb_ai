@@ -57,6 +57,6 @@ tone: "Casual and friendly"
 
 # How many ARB items to send to the AI provider in a single request. (Optional)
 # Increasing this reduces API calls but might hit provider token limits.
-# Default: 10
-batch_size: 10
+# Default: 100
+batch_size: 100
 

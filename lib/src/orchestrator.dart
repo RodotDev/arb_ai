@@ -122,6 +122,7 @@ class ArbAiOrchestrator {
     var allInSync = true;
     final Map<String, List<String>> outdatedKeysPerTarget = {};
     final Map<String, List<String>> missingKeysPerTarget = {};
+    final Map<String, List<String>> orphanKeysPerTarget = {};
 
     // 1. Analyze and diff for each target language
     final Map<String, Map<String, String>> keysToTranslatePerTarget = {};
@@ -151,8 +152,17 @@ class ArbAiOrchestrator {
 
       final outdated = <String>[];
       final missing = <String>[];
+      final orphans = <String>[];
       final toTranslate = <String, String>{};
       final nonTextToCopy = <String, String>{};
+
+      if (targetArb != null) {
+        for (final key in targetArb.translations.keys) {
+          if (!sourceArb.translations.containsKey(key)) {
+            orphans.add(key);
+          }
+        }
+      }
 
       for (final key in sourceArb.translations.keys) {
         final sourceValue = sourceArb.translations[key]!;
@@ -191,7 +201,9 @@ class ArbAiOrchestrator {
         }
       }
 
-      if (toTranslate.isNotEmpty || nonTextToCopy.isNotEmpty) {
+      if (toTranslate.isNotEmpty ||
+          nonTextToCopy.isNotEmpty ||
+          orphans.isNotEmpty) {
         allInSync = false;
         if (toTranslate.isNotEmpty) {
           keysToTranslatePerTarget[targetLang] = toTranslate;
@@ -205,6 +217,9 @@ class ArbAiOrchestrator {
         if (missing.isNotEmpty) {
           missingKeysPerTarget[targetLang] = missing;
         }
+        if (orphans.isNotEmpty) {
+          orphanKeysPerTarget[targetLang] = orphans;
+        }
       }
     }
 
@@ -216,18 +231,22 @@ class ArbAiOrchestrator {
       }
 
       logger.error(
-        'CI Check Failed: Outdated or missing translations detected!',
+        'CI Check Failed: Outdated, missing, or obsolete translations detected!',
       );
       for (final targetLang in config.targets) {
         final missing = missingKeysPerTarget[targetLang] ?? [];
         final outdated = outdatedKeysPerTarget[targetLang] ?? [];
-        if (missing.isNotEmpty || outdated.isNotEmpty) {
+        final orphans = orphanKeysPerTarget[targetLang] ?? [];
+        if (missing.isNotEmpty || outdated.isNotEmpty || orphans.isNotEmpty) {
           logger.info('Language "$targetLang":');
           if (missing.isNotEmpty) {
             logger.info('  Missing keys: ${missing.join(", ")}');
           }
           if (outdated.isNotEmpty) {
             logger.info('  Outdated keys: ${outdated.join(", ")}');
+          }
+          if (orphans.isNotEmpty) {
+            logger.info('  Obsolete/deleted keys: ${orphans.join(", ")}');
           }
         }
       }
@@ -247,10 +266,12 @@ class ArbAiOrchestrator {
       final targetsToUpdate = <String>{
         ...keysToTranslatePerTarget.keys,
         ...nonTextToCopyPerTarget.keys,
+        ...orphanKeysPerTarget.keys,
       };
       for (final targetLang in targetsToUpdate) {
         final toTranslate = keysToTranslatePerTarget[targetLang] ?? {};
         final nonTextToCopy = nonTextToCopyPerTarget[targetLang] ?? {};
+        final orphans = orphanKeysPerTarget[targetLang] ?? [];
         logger.info('Language "$targetLang" would update:');
         if (toTranslate.isNotEmpty) {
           logger.info('  Translating ${toTranslate.length} text keys:');
@@ -268,6 +289,12 @@ class ArbAiOrchestrator {
             );
           }
         }
+        if (orphans.isNotEmpty) {
+          logger.info('  Pruning ${orphans.length} obsolete/deleted keys:');
+          for (final key in orphans) {
+            logger.info('    - $key (removed from source template)');
+          }
+        }
       }
       logger.success('Dry run simulation completed successfully.');
       return true;
@@ -277,15 +304,26 @@ class ArbAiOrchestrator {
     final targetsToUpdate = <String>{
       ...keysToTranslatePerTarget.keys,
       ...nonTextToCopyPerTarget.keys,
+      ...orphanKeysPerTarget.keys,
     };
 
     for (final targetLang in targetsToUpdate) {
       final toTranslate = keysToTranslatePerTarget[targetLang] ?? {};
       final nonTextToCopy = nonTextToCopyPerTarget[targetLang] ?? {};
+      final orphans = orphanKeysPerTarget[targetLang] ?? [];
       final targetFile = targetFiles[targetLang]!;
       final targetArb = targetArbs[targetLang];
 
       final newTranslations = <String, String>{};
+
+      if (orphans.isNotEmpty) {
+        logger.info(
+          'Pruning ${orphans.length} obsolete/deleted keys from "$targetLang": ${orphans.join(", ")}',
+        );
+        for (final key in orphans) {
+          stateManager.removeKey(key);
+        }
+      }
 
       if (nonTextToCopy.isNotEmpty) {
         logger.info(
@@ -298,7 +336,11 @@ class ArbAiOrchestrator {
       bool saveProgress() {
         final mergedTranslations = <String, String>{};
         if (targetArb != null) {
-          mergedTranslations.addAll(targetArb.translations);
+          for (final entry in targetArb.translations.entries) {
+            if (sourceArb.translations.containsKey(entry.key)) {
+              mergedTranslations[entry.key] = entry.value;
+            }
+          }
         }
         mergedTranslations.addAll(newTranslations);
 
@@ -359,8 +401,8 @@ class ArbAiOrchestrator {
           }
         }
       } else {
-        // If there were only non-text keys to copy, write and save them now
-        if (nonTextToCopy.isNotEmpty) {
+        // If there were only non-text keys to copy or obsolete keys to prune, write and save them now
+        if (nonTextToCopy.isNotEmpty || orphans.isNotEmpty) {
           if (!saveProgress()) {
             return false;
           }

@@ -49,3 +49,7 @@ $RECYCLE.BIN/
 # Local package caches / scratch files
 .pub-cache/
 .pub_cache/
+
+# Temporary directories and test coverage
+tmp/
+coverage/
