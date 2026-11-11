@@ -334,6 +334,14 @@ class IcuValidator {
     'sl': ['one', 'two', 'few', 'other'],
   };
 
+  /// Keyword categories that, in the given language, also match numbers other
+  /// than their exact value: Latvian "zero" covers 0, 10–20, 30…, and
+  /// Slovenian "two" covers 2, 102, 202…
+  static const Map<String, Set<String>> _broadExactCategories = {
+    'lv': {'zero'},
+    'sl': {'two'},
+  };
+
   /// Validates a single target translation string against its source.
   ///
   /// Compares placeholders and complex ICU expressions (plurals/selects) to ensure
@@ -463,6 +471,22 @@ class IcuValidator {
             );
           }
         }
+
+        // A message written for exactly zero (or two) is wrong in a category
+        // that matches other numbers too, so it must show the count whenever
+        // the "other" branch does.
+        final broadCategories =
+            _broadExactCategories[targetLanguage] ??
+            _broadExactCategories[baseLanguage] ??
+            const {};
+        for (final category in broadCategories) {
+          if (tExpr.countlessCategories.contains(category) &&
+              !tExpr.countlessCategories.contains('other')) {
+            return ValidationResult.invalid(
+              'The "$category" category matches more than one number in "$targetLanguage", so its text for "${sExpr.varName}" must show the count with # (like the "other" branch) instead of a message for one exact value.',
+            );
+          }
+        }
       }
     }
 
@@ -493,13 +517,33 @@ class IcuValidator {
     return vars;
   }
 
+  /// Whether a plural [branch] shows the count: through `#`, the [varName]
+  /// placeholder, or a nested expression (assumed to, to avoid false alarms).
+  static bool _showsCount(List<IcuNode> branch, String varName) {
+    return branch.any(
+      (node) => switch (node) {
+        LiteralNode(:final text) => text.contains('#'),
+        PlaceholderNode(:final name) => name.split(',')[0].trim() == varName,
+        _ => true,
+      },
+    );
+  }
+
   /// Recursively extracts information about all plural and select expressions.
   static List<_ComplexExprInfo> _getComplexExpressions(List<IcuNode> nodes) {
     final list = <_ComplexExprInfo>[];
     void collect(IcuNode node) {
       if (node is PluralNode) {
         list.add(
-          _ComplexExprInfo('plural', node.name, node.categories.keys.toSet()),
+          _ComplexExprInfo(
+            'plural',
+            node.name,
+            node.categories.keys.toSet(),
+            countlessCategories: {
+              for (final entry in node.categories.entries)
+                if (!_showsCount(entry.value, node.name)) entry.key,
+            },
+          ),
         );
         for (final catNodes in node.categories.values) {
           catNodes.forEach(collect);
@@ -523,5 +567,14 @@ class _ComplexExprInfo {
   final String type; // 'plural' or 'select'
   final String varName;
   final Set<String> categories;
-  const _ComplexExprInfo(this.type, this.varName, this.categories);
+
+  /// Plural categories whose text never shows the count.
+  final Set<String> countlessCategories;
+
+  const _ComplexExprInfo(
+    this.type,
+    this.varName,
+    this.categories, {
+    this.countlessCategories = const {},
+  });
 }

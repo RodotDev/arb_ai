@@ -79,6 +79,13 @@ abstract final class TranslationPrompt {
       );
     }
     buffer.writeln(
+      '- Inside category keyword branches (one, two, few, many, other), write '
+      'the count with # instead of a literal digit: a category can cover '
+      'several numbers in the target language (e.g. "one" also covers 0 in '
+      'French and Portuguese, and 21 in Russian). Literal digits are only '
+      'safe in exact-value branches such as "=0" or "=2".',
+    );
+    buffer.writeln(
       "- If a message contains any {...} expression, escape every literal "
       "apostrophe/single quote by doubling it (' becomes '') per ICU "
       'MessageFormat rules. Leave apostrophes untouched in plain messages '

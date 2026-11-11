@@ -182,6 +182,53 @@ void main() {
       check(kept.isValid).isTrue();
     });
 
+    test('flags an exact-value message in a category covering more numbers', () {
+      // Latvian "zero" also matches 10–20, 30…: "empty" would be wrong there.
+      const source =
+          '{count, plural, =0{Your cart is empty} other{# items in your cart}}';
+
+      final exactMessage = IcuValidator.validate(
+        key: 'cart',
+        source: source,
+        target:
+            '{count, plural, zero{Jūsu grozs ir tukšs} one{# prece} other{# preces}}',
+        targetLanguage: 'lv',
+      );
+      check(exactMessage.isValid).isFalse();
+      check(exactMessage.error).isNotNull().contains(
+        'The "zero" category matches more than one number',
+      );
+
+      final withCount = IcuValidator.validate(
+        key: 'cart',
+        source: source,
+        target: '{count, plural, zero{# preču} one{# prece} other{# preces}}',
+        targetLanguage: 'lv',
+      );
+      check(withCount.isValid).isTrue();
+
+      // Slovenian "two" also matches 102, 202…
+      final slovenian = IcuValidator.validate(
+        key: 'photos',
+        source: '{count, plural, =2{Both photos} other{# photos}}',
+        target:
+            '{count, plural, one{# fotografija} two{Obe fotografiji} few{# fotografije} other{# fotografij}}',
+        targetLanguage: 'sl',
+      );
+      check(slovenian.isValid).isFalse();
+    });
+
+    test('allows countless branches when no branch shows the count', () {
+      final result = IcuValidator.validate(
+        key: 'delete',
+        source: '{count, plural, =1{Delete file?} other{Delete files?}}',
+        target:
+            '{count, plural, zero{Dzēst failus?} one{Dzēst failu?} other{Dzēst failus?}}',
+        targetLanguage: 'lv',
+      );
+      check(result.isValid).isTrue();
+    });
+
     test('does not require the singular "=1" branch in the target', () {
       final result = IcuValidator.validate(
         key: 'items',
