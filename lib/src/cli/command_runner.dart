@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:args/args.dart';
+import '../config/arb_ai_config.dart';
 import '../config/config_parser.dart';
 import '../orchestrator.dart';
 import 'logger.dart';
@@ -87,7 +88,13 @@ class ArbAiCommandRunner {
         );
       }
 
-      final config = ConfigParser.parseFile(configFile);
+      final ArbAiConfig config;
+      try {
+        config = ConfigParser.parseFile(configFile);
+      } on FormatException catch (e) {
+        logger.error('Configuration Error: ${e.message}');
+        return 64;
+      }
       apiKeyEnv = config.apiKeyEnv;
       final orchestrator = ArbAiOrchestrator(config: config, logger: logger);
 

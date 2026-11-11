@@ -140,8 +140,9 @@ class ConfigParser {
       final content = file.readAsStringSync();
       return parse(content);
     } catch (e) {
+      final reason = e is FormatException ? e.message : '$e';
       throw FormatException(
-        'Failed to parse configuration file ${file.path}: $e',
+        'Failed to parse configuration file ${file.path}: $reason',
       );
     }
   }

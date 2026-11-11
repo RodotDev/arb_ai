@@ -134,7 +134,7 @@ class AnthropicProvider implements TranslationProvider {
       retryableStatuses: const {500, 502, 503, 529},
       retryDelay: _parseRetryAfter,
       fatalHint: (status) => status == 404
-          ? 'Check that "${config.model}" is a valid Claude model ID available to your account.'
+          ? 'Check that "${config.model}" is a valid Claude model ID available to your account'
           : null,
     );
 

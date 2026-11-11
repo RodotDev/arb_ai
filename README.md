@@ -4,7 +4,7 @@
 [![CI](https://github.com/RodotDev/arb_ai/actions/workflows/ci.yml/badge.svg)](https://github.com/RodotDev/arb_ai/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-BSD_3--Clause-blue.svg)](https://github.com/RodotDev/arb_ai/blob/main/LICENSE)
 
-`arb_ai` is a AI-powered command-line tool (CLI) and Dart package designed to automate Flutter localization (l10n) and internationalization (i18n) workflows. It leverages advanced Large Language Models (LLMs) to translate Flutter `.arb` files at build-time, with cost optimization via smart-diffing and strict CI/CD alignment.
+`arb_ai` is an AI-powered command-line tool (CLI) and Dart package designed to automate Flutter localization (l10n) and internationalization (i18n) workflows. It leverages advanced Large Language Models (LLMs) to translate Flutter `.arb` files at build-time, with cost optimization via smart-diffing and strict CI/CD alignment.
 
 ## Features
 

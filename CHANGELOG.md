@@ -19,6 +19,7 @@
 
 - The orchestrator ignored the `provider` configuration key and always used Gemini.
 - The missing API key help text always mentioned `ARB_AI_API_KEY` instead of the configured `api_key_env`.
+- Invalid `arb_ai.yaml` values were reported as "Error parsing arguments" followed by the CLI usage; they are now reported as a configuration error.
 - Fixed translations silently dropping the source's zero branch (e.g. `=0{Your cart is empty}`), which made an empty state render as "0 items". The prompt now asks for it to be kept, and ICU validation fails (and retries) when a source `=0`/`zero` or `=2`/`two` branch has no counterpart in the target.
 - Fixed plural branches written for a single number where the category covers several: the prompt now asks for `#` instead of literal digits inside category branches (e.g. `one` also covers 0 in Portuguese and French), and ICU validation rejects an exact-value message in Latvian `zero` or Slovenian `two`.
 

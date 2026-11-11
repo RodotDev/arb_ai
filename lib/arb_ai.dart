@@ -12,11 +12,9 @@
 /// import 'package:arb_ai/arb_ai.dart';
 ///
 /// void main() async {
-///   final config = ArbAiConfig(
-///     provider: 'gemini',
+///   final config = ArbAiConfig.defaults().copyWith(
 ///     sourceArb: 'lib/l10n/app_en.arb',
 ///     targets: ['es', 'pt'],
-///     apiKeyEnv: 'ARB_AI_API_KEY',
 ///   );
 ///
 ///   final orchestrator = ArbAiOrchestrator(config: config);

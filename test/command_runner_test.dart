@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:arb_ai/src/cli/command_runner.dart';
 import 'package:arb_ai/src/cli/logger.dart';
 import 'package:checks/checks.dart';
@@ -56,6 +57,27 @@ void main() {
       final exitCode = await testRunner.run(['--non-existent-flag']);
       check(exitCode).equals(64);
       check(errBuffer.toString()).contains('Error parsing arguments');
+    });
+
+    test('run with an invalid configuration reports it and returns 64', () async {
+      final configFile = File(
+        '${Directory.systemTemp.createTempSync('arb_ai_test').path}/arb_ai.yaml',
+      )..writeAsStringSync('provider: claude');
+      addTearDown(() => configFile.parent.deleteSync(recursive: true));
+
+      final outBuffer = StringBuffer();
+      final errBuffer = StringBuffer();
+      final testRunner = ArbAiCommandRunner(
+        logger: Logger(outputSink: outBuffer, errorSink: errBuffer),
+      );
+
+      final exitCode = await testRunner.run(['--config', configFile.path]);
+      check(exitCode).equals(64);
+      check(errBuffer.toString())
+        ..contains('Configuration Error')
+        ..contains("Did you mean 'anthropic'?")
+        ..not((it) => it.contains('FormatException'));
+      check(outBuffer.toString()).not((it) => it.contains('Usage:'));
     });
 
     test('run with missing source file returns 1', () async {
