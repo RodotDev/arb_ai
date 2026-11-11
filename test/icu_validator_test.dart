@@ -126,6 +126,72 @@ void main() {
       ).isNotNull().contains('cannot have both "=2" and "two"');
     });
 
+    test('flags a dropped zero branch from the source', () {
+      const source =
+          '{count, plural, =0{Your cart is empty} =1{1 item} other{# items}}';
+
+      final dropped = IcuValidator.validate(
+        key: 'cart',
+        source: source,
+        target: '{count, plural, one{# item} other{# itens}}',
+        targetLanguage: 'pt_BR',
+      );
+      check(dropped.isValid).isFalse();
+      check(dropped.error).isNotNull().contains('Missing "=0" branch');
+
+      final kept = IcuValidator.validate(
+        key: 'cart',
+        source: source,
+        target:
+            '{count, plural, =0{Sua sacola está vazia} one{# item} other{# itens}}',
+        targetLanguage: 'pt_BR',
+      );
+      check(kept.isValid).isTrue();
+    });
+
+    test('accepts the zero category as the zero branch', () {
+      // Arabic requires "zero", which cannot coexist with "=0".
+      final result = IcuValidator.validate(
+        key: 'cart',
+        source: '{count, plural, zero{Your cart is empty} other{# items}}',
+        target:
+            '{count, plural, zero{سلتك فارغة} one{عنصر واحد} two{عنصران} few{# عناصر} many{# عنصرًا} other{# عنصر}}',
+        targetLanguage: 'ar',
+      );
+      check(result.isValid).isTrue();
+    });
+
+    test('flags a dropped two branch from the source', () {
+      const source = '{count, plural, =2{Both items} other{# items}}';
+
+      final dropped = IcuValidator.validate(
+        key: 'items',
+        source: source,
+        target: '{count, plural, other{# 個}}',
+        targetLanguage: 'ja',
+      );
+      check(dropped.isValid).isFalse();
+      check(dropped.error).isNotNull().contains('Missing "=2" branch');
+
+      final kept = IcuValidator.validate(
+        key: 'items',
+        source: source,
+        target: '{count, plural, =2{両方} other{# 個}}',
+        targetLanguage: 'ja',
+      );
+      check(kept.isValid).isTrue();
+    });
+
+    test('does not require the singular "=1" branch in the target', () {
+      final result = IcuValidator.validate(
+        key: 'items',
+        source: '{count, plural, =1{1 item} other{# items}}',
+        target: '{count, plural, other{# 個}}',
+        targetLanguage: 'ja',
+      );
+      check(result.isValid).isTrue();
+    });
+
     test('validates regional languages with base language CLDR rules', () {
       // ru_RU should fallback to ru and require ['one', 'few', 'many', 'other']
       final invalidResult = IcuValidator.validate(

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed translations silently dropping the source's zero branch (e.g. `=0{Your cart is empty}`), which made an empty state render as "0 items". The prompt now asks for it to be kept, and ICU validation fails (and retries) when a source `=0`/`zero` or `=2`/`two` branch has no counterpart in the target.
+
 ## [0.3.0] - 2026-09-02
 
 ### Added

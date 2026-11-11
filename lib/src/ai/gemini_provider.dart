@@ -86,8 +86,18 @@ class GeminiProvider implements TranslationProvider {
       'and the # symbol unchanged.',
     );
     promptBuffer.writeln(
-      '- For plurals, use exactly the CLDR plural categories required by the '
-      'target language — no more, no less — always including "other".',
+      '- For plurals, use the CLDR plural categories required by the target '
+      'language, always including "other". Do not add any other category '
+      'keyword.',
+    );
+    promptBuffer.writeln(
+      '- A source branch for exactly zero ("=0" or "zero") or exactly two '
+      '("=2" or "two") carries its own message (e.g. an empty state), so the '
+      'translation MUST keep a branch for that value. Write it as "=0" / '
+      '"=2", unless the target language requires the "zero" / "two" category: '
+      'then put the translated message in that category instead, and if the '
+      'category also covers other numbers in the target language, phrase it '
+      'with # so it reads correctly for all of them.',
     );
     promptBuffer.writeln(
       '- Do not include both explicit and category-based selectors for the same numeric value '
@@ -101,9 +111,16 @@ class GeminiProvider implements TranslationProvider {
         IcuValidator.cldrPluralCategories[targetLanguage] ??
         IcuValidator.cldrPluralCategories[baseLanguage];
     if (requiredCategories != null) {
+      // Exact-value branches that do not collide with a required category.
+      final allowedExact = [
+        if (!requiredCategories.contains('zero')) '"=0"',
+        if (!requiredCategories.contains('two')) '"=2"',
+      ];
       promptBuffer.writeln(
         '  Specifically for target language code "$targetLanguage", every plural expression MUST '
-        'define exactly these CLDR category keys: ${requiredCategories.join(", ")}.',
+        'define all of these CLDR category keys and no other category keyword: '
+        '${requiredCategories.join(", ")}.'
+        '${allowedExact.isEmpty ? '' : ' A branch for ${allowedExact.join(' or ')} kept from the source is the only allowed addition.'}',
       );
     }
     promptBuffer.writeln(
