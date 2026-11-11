@@ -65,6 +65,7 @@ class ArbAiCommandRunner {
   ///
   /// Returns the corresponding exit code (0 for success, 64 for usage error, 1 for runtime failure).
   Future<int> run(List<String> args) async {
+    var apiKeyEnv = 'ARB_AI_API_KEY';
     try {
       final results = parser.parse(args);
 
@@ -87,6 +88,7 @@ class ArbAiCommandRunner {
       }
 
       final config = ConfigParser.parseFile(configFile);
+      apiKeyEnv = config.apiKeyEnv;
       final orchestrator = ArbAiOrchestrator(config: config, logger: logger);
 
       final success = await orchestrator.run(
@@ -105,8 +107,8 @@ class ArbAiCommandRunner {
       logger.error('Configuration Error: ${e.message}');
       logger.info(
         '\nTo resolve this, please make sure to:'
-        '\n  1. Set the environment variable in your shell (e.g., export ARB_AI_API_KEY="your_key")'
-        '\n  2. Or add a local ".env" file in the root of your project containing: ARB_AI_API_KEY="your_key"\n',
+        '\n  1. Set the environment variable in your shell (e.g., export $apiKeyEnv="your_key")'
+        '\n  2. Or add a local ".env" file in the root of your project containing: $apiKeyEnv="your_key"\n',
       );
       return 1;
     } catch (e) {

@@ -7,6 +7,29 @@ import 'package:test/test.dart';
 import 'package:arb_ai/arb_ai.dart';
 
 void main() {
+  late String? originalEnvContent;
+  final envFile = File('.env');
+
+  setUpAll(() {
+    if (envFile.existsSync()) {
+      originalEnvContent = envFile.readAsStringSync();
+    } else {
+      originalEnvContent = null;
+    }
+    // Write a standard mock .env for tests
+    envFile.writeAsStringSync('TEST_ARB_AI_API_KEY=mock-api-key\n');
+  });
+
+  tearDownAll(() {
+    if (originalEnvContent != null) {
+      envFile.writeAsStringSync(originalEnvContent!);
+    } else {
+      if (envFile.existsSync()) {
+        envFile.deleteSync();
+      }
+    }
+  });
+
   group('TranslationBatcher', () {
     test('chunks empty map to empty list', () {
       final result = TranslationBatcher.chunk({});
@@ -40,29 +63,6 @@ void main() {
   });
 
   group('GeminiProvider', () {
-    late String? originalEnvContent;
-    final envFile = File('.env');
-
-    setUpAll(() {
-      if (envFile.existsSync()) {
-        originalEnvContent = envFile.readAsStringSync();
-      } else {
-        originalEnvContent = null;
-      }
-      // Write a standard mock .env for tests
-      envFile.writeAsStringSync('TEST_ARB_AI_API_KEY=mock-api-key\n');
-    });
-
-    tearDownAll(() {
-      if (originalEnvContent != null) {
-        envFile.writeAsStringSync(originalEnvContent!);
-      } else {
-        if (envFile.existsSync()) {
-          envFile.deleteSync();
-        }
-      }
-    });
-
     const config = ArbAiConfig(
       provider: 'gemini',
       apiKeyEnv: 'TEST_ARB_AI_API_KEY',
@@ -101,7 +101,10 @@ void main() {
         final mockClient = MockClient(
           (request) async => http.Response('', 200),
         );
-        final provider = GeminiProvider(httpClient: mockClient);
+        final provider = GeminiProvider(
+          httpClient: mockClient,
+          environment: const {},
+        );
 
         try {
           await provider.translate(
@@ -567,5 +570,382 @@ void main() {
         );
       },
     );
+  });
+
+  group('AnthropicProvider', () {
+    const config = ArbAiConfig(
+      provider: 'anthropic',
+      apiKeyEnv: 'TEST_ARB_AI_API_KEY',
+      model: 'claude-sonnet-5-5',
+      sourceArb: 'lib/l10n/app_en.arb',
+      targets: ['pt'],
+      glossary: {
+        'pt': {'hello': 'olá'},
+        'es': {'hello': 'hola'},
+      },
+      doNotTranslate: ['Flutter'],
+      tone: 'formal',
+    );
+
+    /// Builds a Messages API response whose text block holds [translations].
+    http.Response messageResponse(
+      Map<String, String> translations, {
+      String stopReason = 'end_turn',
+      Map<String, dynamic>? stopDetails,
+    }) {
+      final payload = {
+        'translations': [
+          for (final entry in translations.entries)
+            {'key': entry.key, 'value': entry.value},
+        ],
+      };
+      return http.Response.bytes(
+        utf8.encode(
+          jsonEncode({
+            'type': 'message',
+            'role': 'assistant',
+            'model': 'claude-sonnet-5-5',
+            'content': [
+              {'type': 'thinking', 'thinking': '', 'signature': 'sig'},
+              {'type': 'text', 'text': jsonEncode(payload)},
+            ],
+            'stop_reason': stopReason,
+            'stop_details': stopDetails,
+          }),
+        ),
+        200,
+      );
+    }
+
+    /// Awaits [call] and returns the message of the [HttpException] it throws.
+    Future<String> httpFailure(Future<Object?> call) async {
+      try {
+        await call;
+      } on HttpException catch (e) {
+        return e.message;
+      }
+      fail('Expected an HttpException');
+    }
+
+    test('returns empty map on empty strings input without api call', () async {
+      var callCount = 0;
+      final provider = AnthropicProvider(
+        httpClient: MockClient((request) async {
+          callCount++;
+          return http.Response('', 200);
+        }),
+      );
+
+      final result = await provider.translate(
+        strings: {},
+        targetLanguage: 'pt',
+        config: config,
+      );
+      check(result).isEmpty();
+      check(callCount).equals(0);
+    });
+
+    test('throws StateError naming both variables when no api key is set', () {
+      final provider = AnthropicProvider(environment: const {});
+
+      check(
+          () => provider.validateEnvironment(
+            config.copyWith(apiKeyEnv: 'NON_EXISTENT_KEY_123'),
+          ),
+        ).throws<StateError>().has((e) => e.message, 'message')
+        ..contains('NON_EXISTENT_KEY_123')
+        ..contains('ANTHROPIC_API_KEY');
+    });
+
+    test('falls back to ANTHROPIC_API_KEY when api_key_env is unset', () async {
+      final provider = AnthropicProvider(
+        httpClient: MockClient((request) async {
+          check(request.headers['x-api-key']).equals('conventional-key');
+          return messageResponse({'welcome': 'Bem-vindo'});
+        }),
+        environment: const {'ANTHROPIC_API_KEY': 'conventional-key'},
+      );
+
+      final result = await provider.translate(
+        strings: {'welcome': 'Welcome'},
+        targetLanguage: 'pt',
+        config: config.copyWith(apiKeyEnv: 'NON_EXISTENT_KEY_123'),
+      );
+      check(result).deepEquals({'welcome': 'Bem-vindo'});
+    });
+
+    test(
+      'performs successful translation with correct payload structure',
+      () async {
+        final mockClient = MockClient((request) async {
+          check(
+            request.url.toString(),
+          ).equals('https://api.anthropic.com/v1/messages');
+          check(request.headers['x-api-key']).equals('mock-api-key');
+          check(request.headers['anthropic-version']).equals('2026-10-21');
+          check(request.headers['Content-Type']).equals('application/json');
+
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          check(body['model']).equals('claude-sonnet-5-5');
+          check(body['max_tokens']).isA<int>().isGreaterThan(0);
+          // Sampling parameters are rejected by this API version.
+          check(body.keys).not((it) => it.contains('temperature'));
+          check(body.keys).not((it) => it.contains('thinking'));
+
+          final system = body['system'] as String;
+          check(system).contains('"pt" (Portuguese)');
+          check(system).contains('formal');
+          check(system).contains('Flutter');
+          check(system).contains('olá');
+          check(system).not((it) => it.contains('hola'));
+          check(
+            system,
+          ).contains('Never translate placeholder or variable names.');
+
+          final messages = body['messages'] as List<dynamic>;
+          check(messages).length.equals(1);
+          final message = messages[0] as Map<String, dynamic>;
+          check(message['role']).equals('user');
+          final userText = message['content'] as String;
+          check(userText).contains('"welcome":"Welcome {name}"');
+          check(userText).contains('Context: Greeting on the home page.');
+          check(userText).contains('{name} (desc: User name, example: Ana);');
+          check(userText).contains('Missing placeholder {name}');
+
+          final format =
+              (body['output_config'] as Map<String, dynamic>)['format']
+                  as Map<String, dynamic>;
+          check(format['type']).equals('json_schema');
+          final schema = format['schema'] as Map<String, dynamic>;
+          check(schema['additionalProperties']).equals(false);
+          check(schema['required'] as List<dynamic>).contains('translations');
+
+          return messageResponse({
+            'welcome': 'Bem-vindo {name}',
+            'goodbye': 'Até logo',
+          });
+        });
+
+        final provider = AnthropicProvider(httpClient: mockClient);
+        final result = await provider.translate(
+          strings: {'welcome': 'Welcome {name}', 'goodbye': 'Goodbye'},
+          targetLanguage: 'pt',
+          config: config,
+          descriptions: {'welcome': 'Greeting on the home page'},
+          placeholders: {
+            'welcome': {
+              'name': {'description': 'User name', 'example': 'Ana'},
+            },
+          },
+          retryFeedback: {'welcome': 'Missing placeholder {name}'},
+        );
+
+        check(
+          result,
+        ).deepEquals({'welcome': 'Bem-vindo {name}', 'goodbye': 'Até logo'});
+      },
+    );
+
+    test('honors a custom base_url', () async {
+      final provider = AnthropicProvider(
+        httpClient: MockClient((request) async {
+          check(
+            request.url.toString(),
+          ).equals('https://proxy.example.com/v1/messages');
+          return messageResponse({'welcome': 'Bem-vindo'});
+        }),
+      );
+
+      await provider.translate(
+        strings: {'welcome': 'Welcome'},
+        targetLanguage: 'pt',
+        config: config.copyWith(baseUrl: 'https://proxy.example.com/'),
+      );
+    });
+
+    test('omits skipped keys and ignores unknown ones', () async {
+      final provider = AnthropicProvider(
+        httpClient: MockClient(
+          (request) async =>
+              messageResponse({'welcome': 'Bem-vindo', 'invented': 'x'}),
+        ),
+      );
+
+      final result = await provider.translate(
+        strings: {'welcome': 'Welcome', 'goodbye': 'Goodbye'},
+        targetLanguage: 'pt',
+        config: config,
+      );
+      check(result).deepEquals({'welcome': 'Bem-vindo'});
+    });
+
+    test('waits for the retry-after header on 429', () async {
+      var callCount = 0;
+      final recordedDelays = <Duration>[];
+      final provider = AnthropicProvider(
+        httpClient: MockClient((request) async {
+          callCount++;
+          if (callCount == 1) {
+            return http.Response(
+              '{"type":"error","error":{"type":"rate_limit_error","message":"Slow down"}}',
+              429,
+              headers: {'retry-after': '7'},
+            );
+          }
+          return messageResponse({'welcome': 'Bem-vindo'});
+        }),
+        delay: (duration) async => recordedDelays.add(duration),
+      );
+
+      final result = await provider.translate(
+        strings: {'welcome': 'Welcome'},
+        targetLanguage: 'pt',
+        config: config,
+      );
+
+      check(result).deepEquals({'welcome': 'Bem-vindo'});
+      check(callCount).equals(2);
+      check(recordedDelays).deepEquals([const Duration(seconds: 7)]);
+    });
+
+    test('retries 529 overloaded errors with exponential backoff', () async {
+      var callCount = 0;
+      final recordedDelays = <Duration>[];
+      final provider = AnthropicProvider(
+        httpClient: MockClient((request) async {
+          callCount++;
+          return http.Response(
+            '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}',
+            529,
+          );
+        }),
+        delay: (duration) async => recordedDelays.add(duration),
+      );
+
+      check(
+        await httpFailure(
+          provider.translate(
+            strings: {'welcome': 'Welcome'},
+            targetLanguage: 'pt',
+            config: config,
+          ),
+        ),
+      ).contains('Failed after 5 retries with status 529');
+      check(callCount).equals(5);
+      check(recordedDelays.map((d) => d.inSeconds)).deepEquals([2, 4, 8, 16]);
+    });
+
+    test('fails fast on 404 with a model hint and the API message', () async {
+      var callCount = 0;
+      final provider = AnthropicProvider(
+        httpClient: MockClient((request) async {
+          callCount++;
+          return http.Response(
+            '{"type":"error","error":{"type":"not_found_error","message":"model: claude-typo"},"request_id":"req_123"}',
+            404,
+          );
+        }),
+        delay: (duration) async {},
+      );
+
+      check(
+          await httpFailure(
+            provider.translate(
+              strings: {'welcome': 'Welcome'},
+              targetLanguage: 'pt',
+              config: config.copyWith(model: 'claude-typo'),
+            ),
+          ),
+        )
+        ..contains('status 404')
+        ..contains('req_123')
+        ..contains('"claude-typo" is a valid Claude model ID');
+      check(callCount).equals(1);
+    });
+
+    test('throws HttpException when the model refuses the batch', () async {
+      final provider = AnthropicProvider(
+        httpClient: MockClient(
+          (request) async => messageResponse(
+            {},
+            stopReason: 'refusal',
+            stopDetails: {'type': 'refusal', 'category': 'cyber'},
+          ),
+        ),
+      );
+
+      check(
+        await httpFailure(
+          provider.translate(
+            strings: {'welcome': 'Welcome'},
+            targetLanguage: 'pt',
+            config: config,
+          ),
+        ),
+      ).contains('declined to translate this batch (category: cyber)');
+    });
+
+    test('suggests a smaller batch_size when output is truncated', () async {
+      final provider = AnthropicProvider(
+        httpClient: MockClient(
+          (request) async => messageResponse({}, stopReason: 'max_tokens'),
+        ),
+      );
+
+      check(
+        await httpFailure(
+          provider.translate(
+            strings: {'welcome': 'Welcome'},
+            targetLanguage: 'pt',
+            config: config,
+          ),
+        ),
+      ).contains("Lower 'batch_size'");
+    });
+
+    test('throws FormatException on malformed json in response', () async {
+      final provider = AnthropicProvider(
+        httpClient: MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'content': [
+                {'type': 'text', 'text': 'not json'},
+              ],
+              'stop_reason': 'end_turn',
+            }),
+            200,
+          ),
+        ),
+      );
+
+      await check(
+        provider.translate(
+          strings: {'welcome': 'Welcome'},
+          targetLanguage: 'pt',
+          config: config,
+        ),
+      ).throws<FormatException>();
+    });
+  });
+
+  group('ProviderRegistry', () {
+    test('creates the provider matching each configuration name', () {
+      check(ProviderRegistry.of('gemini').create()).isA<GeminiProvider>();
+      check(ProviderRegistry.of('anthropic').create()).isA<AnthropicProvider>();
+    });
+
+    test('orchestrator selects the provider from the configuration', () {
+      final config = ArbAiConfig.defaults();
+      check(ArbAiOrchestrator(config: config).provider).isA<GeminiProvider>();
+      check(
+        ArbAiOrchestrator(
+          config: config.copyWith(provider: 'anthropic'),
+        ).provider,
+      ).isA<AnthropicProvider>();
+    });
+
+    test('rejects unknown providers', () {
+      check(() => ProviderRegistry.of('openai')).throws<FormatException>();
+    });
   });
 }

@@ -1,5 +1,6 @@
 /// A CLI and programming library for AI-powered, build-time translation of
-/// Flutter ARB (Application Resource Bundle) files using the Gemini API.
+/// Flutter ARB (Application Resource Bundle) files using Google Gemini or
+/// Anthropic Claude models.
 ///
 /// This library provides programmatic access to the key orchestration,
 /// smart-diffing, ICU validation, and batching logic of the `arb_ai` package.
@@ -33,5 +34,7 @@ export 'src/arb/icu_validator.dart';
 export 'src/arb/arb_writer.dart';
 export 'src/ai/translation_provider.dart';
 export 'src/ai/translation_batcher.dart';
-export 'src/ai/gemini_provider.dart';
+export 'src/ai/provider_registry.dart';
+export 'src/ai/providers/anthropic_provider.dart';
+export 'src/ai/providers/gemini_provider.dart';
 export 'src/orchestrator.dart';

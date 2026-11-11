@@ -33,13 +33,13 @@ dart pub global activate arb_ai
 Create a file named `arb_ai.yaml` in the root of your project:
 
 ```yaml
-# Provider engine (Currently supports 'gemini')
+# Provider engine: 'gemini' (default) or 'anthropic'
 provider: gemini
 
-# The environment variable to fetch your API Key
+# The environment variable to fetch your API Key (default: ARB_AI_API_KEY)
 api_key_env: ARB_AI_API_KEY
 
-# The model to use (default: gemini-3.5-flash)
+# The model to use (optional, each provider has its own default)
 model: gemini-3.5-flash
 
 # Source ARB template (optional)
@@ -85,6 +85,35 @@ Expose the target environment key (e.g. `ARB_AI_API_KEY`) in your shell or place
 
 ```env
 ARB_AI_API_KEY=PutYourApiKeyHere
+```
+
+If `api_key_env` is not set, `arb_ai` falls back to the provider's conventional variable (`GEMINI_API_KEY` or `ANTHROPIC_API_KEY`), so a key you already export for other tools just works.
+
+## Providers
+
+Pick a provider with `provider`. `model` is optional and accepts any model ID the provider offers, so new models work without upgrading `arb_ai`.
+
+| `provider` | Models | Default `model` | Conventional key variable |
+|---|---|---|---|
+| `gemini` (default) | Google Gemini | `gemini-3.5-flash` | `GEMINI_API_KEY` |
+| `anthropic` | Anthropic Claude | `claude-sonnet-5-5` | `ANTHROPIC_API_KEY` |
+
+### Anthropic (Claude)
+
+The smallest configuration for translating with Claude:
+
+```yaml
+provider: anthropic
+targets:
+  - pt
+  - es
+```
+
+To choose a different Claude model, set its ID (see the [models overview](https://platform.claude.com/docs/en/about-claude/models/overview)):
+
+```yaml
+provider: anthropic
+model: claude-haiku-5-5 # fastest and cheapest; or claude-opus-5-5 for the highest quality
 ```
 
 ## Usage
@@ -213,7 +242,6 @@ void main() async {
 
 ## Next Steps (Roadmap)
 
-- **Anthropic Claude Provider**: Native support for Claude models via the Anthropic REST API.
 - **OpenAI ChatGPT Provider**: Native support for GPT models via the OpenAI REST API.
 
 ## License

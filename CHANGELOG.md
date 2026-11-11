@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Anthropic Claude provider (`provider: anthropic`) built on the Messages REST API with structured JSON outputs. Defaults to `claude-sonnet-5-5` and accepts any Claude model ID via `model`.
+- Provider registry (`ProviderRegistry`) that selects the provider from the `provider` configuration key, making each provider a self-contained module under `lib/src/ai/providers/`.
+- Per-provider default `model` when it is omitted from `arb_ai.yaml`.
+- API key fallback to the provider's conventional variable (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) when `api_key_env` is not set.
+- "Did you mean" suggestions for mistyped provider names (e.g. `claude`).
+
+### Changed
+
+- Extracted the translation prompt, API key lookup, and HTTP retry logic from `GeminiProvider` into shared modules reused by every provider.
+- **Breaking**: `provider: openai` is now rejected. It was accepted by the configuration parser but silently translated with Gemini.
+
+### Fixed
+
+- The orchestrator ignored the `provider` configuration key and always used Gemini.
+- The missing API key help text always mentioned `ARB_AI_API_KEY` instead of the configured `api_key_env`.
+
 ## [0.3.0] - 2026-09-02
 
 ### Added

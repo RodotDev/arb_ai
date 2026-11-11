@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'ai/gemini_provider.dart';
+import 'ai/provider_registry.dart';
 import 'ai/translation_batcher.dart';
 import 'ai/translation_provider.dart';
 import 'arb/arb_parser.dart';
@@ -23,12 +23,13 @@ class ArbAiOrchestrator {
 
   /// Creates a new [ArbAiOrchestrator] instance with the given [config].
   ///
-  /// Optionally, you can supply a custom [provider] and [logger].
+  /// Unless a custom [provider] is supplied, it is selected by
+  /// [ArbAiConfig.provider]. Optionally, you can also supply a [logger].
   ArbAiOrchestrator({
     required this.config,
     TranslationProvider? provider,
     this.logger = const Logger(),
-  }) : provider = provider ?? GeminiProvider();
+  }) : provider = provider ?? ProviderRegistry.of(config.provider).create();
 
   /// Resolves the target file path based on source file path, target language, and source locale.
   File getTargetFile(

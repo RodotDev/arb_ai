@@ -1,14 +1,16 @@
 /// Configuration model for `arb_ai.yaml` config files.
 class ArbAiConfig {
-  /// The AI translation provider. Currently supports 'gemini' (native).
+  /// The AI translation provider: 'gemini' (default) or 'anthropic'.
   final String provider;
 
   /// The environment variable name holding the API key.
-  /// Defaults to 'ARB_AI_API_KEY'.
+  /// Defaults to 'ARB_AI_API_KEY'. When it is not set, the provider's
+  /// conventional variable is used (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`).
   final String apiKeyEnv;
 
   /// The specific LLM model name to use.
-  /// Defaults to 'gemini-3.5-flash'.
+  /// Defaults to 'gemini-3.5-flash'. When parsed from YAML without a model,
+  /// each provider falls back to its own default.
   final String model;
 
   /// An optional custom API base URL.

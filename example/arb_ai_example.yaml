@@ -7,16 +7,17 @@
 # If a field is omitted, its default value will be used.
 
 # The AI provider to use. (Optional)
-# Supported values: 'gemini', 'openai'.
+# Supported values: 'gemini' (Google Gemini), 'anthropic' (Anthropic Claude).
 # Default: 'gemini'
 provider: gemini
 
 # The specific AI model to use for translations. (Optional)
-# Default: 'gemini-3.5-flash'
+# Default: 'gemini-3.5-flash' for gemini, 'claude-sonnet-5-5' for anthropic.
 model: gemini-3.5-flash
 
 # The environment variable key where your API key is stored. (Optional)
-# By default, it expects ARB_AI_API_KEY to be set in your environment.
+# If it is not set, the provider's conventional variable is used instead
+# (GEMINI_API_KEY or ANTHROPIC_API_KEY).
 # Default: 'ARB_AI_API_KEY'
 api_key_env: ARB_AI_API_KEY
 

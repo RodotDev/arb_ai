@@ -20,10 +20,10 @@ void main() {
 
     test('parse() with valid overrides parses correctly', () {
       const yaml = '''
-provider: openai
+provider: anthropic
 api_key_env: CUSTOM_KEY
-model: gpt-4
-base_url: https://api.openai.com/v1
+model: claude-haiku-5-5
+base_url: https://proxy.example.com
 source_arb: l10n/source.arb
 targets:
   - pt
@@ -41,10 +41,10 @@ tone: formal
 batch_size: 10
 ''';
       final config = ConfigParser.parse(yaml);
-      check(config.provider).equals('openai');
+      check(config.provider).equals('anthropic');
       check(config.apiKeyEnv).equals('CUSTOM_KEY');
-      check(config.model).equals('gpt-4');
-      check(config.baseUrl).equals('https://api.openai.com/v1');
+      check(config.model).equals('claude-haiku-5-5');
+      check(config.baseUrl).equals('https://proxy.example.com');
       check(config.sourceArb).equals('l10n/source.arb');
       check(config.targets).deepEquals(['pt', 'es']);
       check(config.glossary).deepEquals({
@@ -56,10 +56,22 @@ batch_size: 10
       check(config.batchSize).equals(10);
     });
 
+    test('parse() uses the default model of the selected provider', () {
+      final config = ConfigParser.parse('provider: anthropic');
+      check(config.provider).equals('anthropic');
+      check(config.model).equals('claude-sonnet-5-5');
+      check(config.apiKeyEnv).equals('ARB_AI_API_KEY');
+    });
+
     test('parse() throws FormatException on invalid provider', () {
-      check(
-        () => ConfigParser.parse('provider: claude'),
-      ).throws<FormatException>();
+      check(() => ConfigParser.parse('provider: claude'))
+          .throws<FormatException>()
+          .has((e) => e.message, 'message')
+          .contains("Did you mean 'anthropic'?");
+      check(() => ConfigParser.parse('provider: openai'))
+          .throws<FormatException>()
+          .has((e) => e.message, 'message')
+          .contains("'gemini', 'anthropic'");
     });
 
     test('parse() throws FormatException on invalid targets format', () {

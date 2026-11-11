@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:yaml/yaml.dart';
+import '../ai/provider_registry.dart';
 import 'arb_ai_config.dart';
 
 /// Service class to parse and validate `arb_ai.yaml` configuration.
@@ -21,14 +22,10 @@ class ConfigParser {
     final defaultSourceArb = _inferSourceArbFromL10nYaml();
 
     final provider = doc['provider'] as String? ?? defaults.provider;
-    if (provider != 'gemini' && provider != 'openai') {
-      throw FormatException(
-        "Invalid 'provider': '$provider'. Supported providers are 'gemini' and 'openai'.",
-      );
-    }
+    final providerSpec = ProviderRegistry.of(provider);
 
     final apiKeyEnv = doc['api_key_env'] as String? ?? defaults.apiKeyEnv;
-    final model = doc['model'] as String? ?? defaults.model;
+    final model = doc['model'] as String? ?? providerSpec.defaultModel;
     final baseUrl = doc['base_url'] as String?;
     final sourceArb = doc['source_arb'] as String? ?? defaultSourceArb;
 
