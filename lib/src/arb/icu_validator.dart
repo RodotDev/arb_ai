@@ -449,6 +449,20 @@ class IcuValidator {
             );
           }
         }
+
+        // A source branch for exactly zero or two carries its own message
+        // (e.g. an empty state) that the target must not lose. Flutter l10n
+        // treats "=0"/"zero" (and "=2"/"two") as the same case.
+        for (final (exact, keyword) in const [('=0', 'zero'), ('=2', 'two')]) {
+          bool covers(Set<String> categories) =>
+              categories.contains(exact) || categories.contains(keyword);
+
+          if (covers(sExpr.categories) && !covers(tExpr.categories)) {
+            return ValidationResult.invalid(
+              'Missing "$exact" branch in plural expression for "${sExpr.varName}": the source defines a specific message for this exact value, so the translation must keep one (as "$exact", or as "$keyword" if the target language requires that category).',
+            );
+          }
+        }
       }
     }
 

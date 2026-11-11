@@ -280,7 +280,8 @@ void main() {
       final validPl = IcuValidator.validate(
         key: 'inboxCount',
         source: source,
-        target: '{count, plural, one{1} few{few} many{many} other{other}}',
+        target:
+            '{count, plural, =0{zero} one{1} few{few} many{many} other{other}}',
         targetLanguage: 'pl',
       );
       check(validPl.isValid).isTrue();
@@ -329,7 +330,7 @@ void main() {
       final validSl = IcuValidator.validate(
         key: 'inboxCount',
         source: source,
-        target: '{count, plural, one{1} two{2} few{few} other{other}}',
+        target: '{count, plural, =0{zero} one{1} two{2} few{few} other{other}}',
         targetLanguage: 'sl',
       );
       check(validSl.isValid).isTrue();
