@@ -3,9 +3,13 @@ import 'dart:io';
 
 /// Deterministic ARB serializer to write clean and Git-friendly target translation files.
 class ArbWriter {
+  /// The '@@author' recorded in every generated file, crediting the tool as
+  /// the translator (as the ARB specification suggests for localized files).
+  static const author = 'ARB AI';
+
   /// Serializes the target translations into a deterministic JSON-formatted ARB string.
   ///
-  /// - Sets the '@@locale' parameter at the top.
+  /// - Sets the '@@locale' and '@@author' attributes at the top.
   /// - Orders translation keys strictly following the order defined in [sourceKeyOrder].
   /// - Enforces a 2-space indentation style.
   /// - Adds a final trailing newline.
@@ -17,6 +21,7 @@ class ArbWriter {
   }) {
     final data = <String, dynamic>{};
     data['@@locale'] = locale;
+    data['@@author'] = author;
 
     // Add keys in the exact order they exist in the source template
     for (final key in sourceKeyOrder) {

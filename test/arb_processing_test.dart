@@ -43,6 +43,42 @@ void main() {
       check(arbFile.keyOrder).deepEquals(['welcomeMessage', 'simpleKey']);
     });
 
+    test('exposes resource and file context attributes', () {
+      final arbFile = ArbFile.parse('''
+{
+  "@@context": "A recipe sharing app",
+  "print": "Print",
+  "@print": {"type": "text", "context": "homePage:Print dialog box"},
+  "logo": "logo.png",
+  "@logo": {"type": "image"},
+  "plain": "Plain"
+}
+''');
+
+      check(arbFile.context).equals('A recipe sharing app');
+      check(arbFile.metadata['print']!.type).equals('text');
+      check(
+        arbFile.metadata['print']!.context,
+      ).equals('homePage:Print dialog box');
+      check(arbFile.metadata['logo']!.type).equals('image');
+      check(arbFile.metadata['logo']!.context).isNull();
+      check(arbFile.metadata['plain']).isNull();
+    });
+
+    test('ignores context attributes that are not strings', () {
+      final arbFile = ArbFile.parse('''
+{
+  "@@context": 42,
+  "key": "Value",
+  "@key": {"type": true, "context": ["home"]}
+}
+''');
+
+      check(arbFile.context).isNull();
+      check(arbFile.metadata['key']!.type).isNull();
+      check(arbFile.metadata['key']!.context).isNull();
+    });
+
     test('throws FormatException on invalid formats', () {
       check(() => ArbFile.parse('invalid json')).throws<FormatException>();
       check(() => ArbFile.parse('[]')).throws<FormatException>();
@@ -71,6 +107,7 @@ void main() {
       const expected =
           '{\n'
           '  "@@locale": "pt",\n'
+          '  "@@author": "ARB AI",\n'
           '  "key1": "Value 1",\n'
           '  "key2": "Value 2"\n'
           '}\n';

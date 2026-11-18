@@ -139,7 +139,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         );
@@ -237,7 +239,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((invocation) async {
@@ -293,6 +297,61 @@ void main() {
     );
 
     test(
+      'forwards ARB context metadata to the provider and signs the target file',
+      () async {
+        sourceFile.writeAsStringSync(
+          jsonEncode({
+            '@@locale': 'en',
+            '@@context': 'A recipe sharing app',
+            'print': 'Print',
+            '@print': {'context': 'homePage:Print dialog box'},
+            'save': 'Save',
+          }),
+        );
+
+        Map<String, String>? receivedContexts;
+        String? receivedFileContext;
+        final provider = MockTranslationProvider();
+        when(
+          () => provider.translate(
+            strings: any(named: 'strings'),
+            targetLanguage: any(named: 'targetLanguage'),
+            config: any(named: 'config'),
+            descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
+            placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
+            retryFeedback: any(named: 'retryFeedback'),
+          ),
+        ).thenAnswer((invocation) async {
+          receivedContexts =
+              invocation.namedArguments[#contexts] as Map<String, String>?;
+          receivedFileContext =
+              invocation.namedArguments[#fileContext] as String?;
+          return {'print': 'Imprimir', 'save': 'Salvar'};
+        });
+
+        final orchestrator = ArbAiOrchestrator(
+          config: testConfig,
+          provider: provider,
+          logger: const SilentLogger(),
+        );
+
+        check(await orchestrator.run()).isTrue();
+        check(
+          receivedContexts,
+        ).isNotNull().deepEquals({'print': 'homePage:Print dialog box'});
+        check(receivedFileContext).equals('A recipe sharing app');
+
+        final targetJson =
+            jsonDecode(File('${tempDir.path}/app_pt.arb').readAsStringSync())
+                as Map<String, dynamic>;
+        check(targetJson['@@author']).equals('ARB AI');
+        check(targetJson.containsKey('@@context')).isFalse();
+      },
+    );
+
+    test(
       'passes correct retryFeedback to provider when translation validation fails',
       () async {
         var callCount = 0;
@@ -305,7 +364,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((invocation) async {
@@ -356,7 +417,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((_) async {
@@ -401,7 +464,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((_) async {
@@ -449,7 +514,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((invocation) async {
@@ -515,7 +582,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((invocation) async {
@@ -572,7 +641,9 @@ void main() {
           targetLanguage: any(named: 'targetLanguage'),
           config: any(named: 'config'),
           descriptions: any(named: 'descriptions'),
+          contexts: any(named: 'contexts'),
           placeholders: any(named: 'placeholders'),
+          fileContext: any(named: 'fileContext'),
           retryFeedback: any(named: 'retryFeedback'),
         ),
       ).thenAnswer((invocation) async {
@@ -613,7 +684,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((_) async {
@@ -662,7 +735,9 @@ void main() {
             targetLanguage: any(named: 'targetLanguage'),
             config: any(named: 'config'),
             descriptions: any(named: 'descriptions'),
+            contexts: any(named: 'contexts'),
             placeholders: any(named: 'placeholders'),
+            fileContext: any(named: 'fileContext'),
             retryFeedback: any(named: 'retryFeedback'),
           ),
         ).thenAnswer((_) async {

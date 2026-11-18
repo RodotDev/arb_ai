@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.1] - 2026-11-18
+
+### Added
+
+- The resource `context` attribute (e.g. `"@print": {"context": "homePage:Print dialog box"}`) is now sent to the model as the key's location in the app.
+- The global `@@context` attribute is now sent to the model as context for every string in the file.
+- Generated target files now record `"@@author": "ARB AI"`, as the ARB specification suggests for localized files. Existing files gain it the next time `arb_ai` updates them.
+- `ArbKeyMetadata.type`, `ArbKeyMetadata.context` and `ArbFile.context` accessors.
+
+### Changed
+
+- `TranslationProvider.translate` gained the optional named parameters `contexts` and `fileContext`. Custom providers must declare both to compile.
+- The per-key prompt now labels the ARB description as `Description:` instead of `Context:`.
+
+### Fixed
+
+- Placeholder `type` and `format` were documented as forwarded to the model but were left out of the prompt.
+- A non-string `type` attribute in a key's metadata crashed the run; it is now ignored.
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

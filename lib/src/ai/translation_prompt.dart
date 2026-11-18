@@ -11,11 +11,13 @@ abstract final class TranslationPrompt {
       'and ICU MessageFormat. You strictly translate user-provided JSON '
       'values while preserving ICU syntax and placeholders';
 
-  /// Translation instructions for [targetLanguage]: ICU rules followed by the
-  /// tone, do-not-translate terms and glossary from [config].
+  /// Translation instructions for [targetLanguage]: the ARB file's
+  /// `@@context` ([fileContext]), ICU rules, then the tone, do-not-translate
+  /// terms and glossary from [config].
   static String instructions({
     required String targetLanguage,
     required ArbAiConfig config,
+    String? fileContext,
   }) {
     final buffer = StringBuffer();
     final expandedLang = languageName(targetLanguage);
@@ -29,6 +31,9 @@ abstract final class TranslationPrompt {
       'language code $promptLangStr. Write natural, idiomatic UI text (never '
       'word-for-word) and keep terminology consistent across all keys.',
     );
+    if (fileContext != null && fileContext.isNotEmpty) {
+      buffer.writeln('App context for all strings: $fileContext.');
+    }
     buffer.writeln('ICU MessageFormat & placeholder rules:');
     buffer.writeln(
       '- Preserve every placeholder exactly, including its type and format '
@@ -126,17 +131,24 @@ abstract final class TranslationPrompt {
     return buffer.toString();
   }
 
-  /// Context for a single key: its ARB description, placeholder metadata and
-  /// the validation error of a previous attempt. Returns null when there is
-  /// nothing to say about the key.
+  /// Context for a single key: its ARB description and `context` (where it is
+  /// used in the app), placeholder metadata and the validation error of a
+  /// previous attempt. Returns null when there is nothing to say about the key.
   static String? keyContext({
     String? description,
+    String? context,
     Map<String, dynamic>? placeholders,
     String? retryFeedback,
   }) {
     final buffer = StringBuffer();
     if (description != null && description.isNotEmpty) {
-      buffer.write('Context: $description.');
+      buffer.write('Description: $description.');
+    }
+    if (context != null && context.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write(' ');
+      // ARB separates context levels with ':'; ' > ' reads clearer to a model.
+      final location = context.split(':').map((s) => s.trim()).join(' > ');
+      buffer.write('Location in app: $location.');
     }
     if (placeholders != null && placeholders.isNotEmpty) {
       if (buffer.isNotEmpty) buffer.write(' ');
@@ -144,6 +156,8 @@ abstract final class TranslationPrompt {
       placeholders.forEach((name, metadata) {
         if (metadata is! Map<String, dynamic>) return;
         final details = [
+          if (metadata['type'] != null) 'type: ${metadata['type']}',
+          if (metadata['format'] != null) 'format: ${metadata['format']}',
           if (metadata['description'] != null)
             'desc: ${metadata['description']}',
           if (metadata['example'] != null) 'example: ${metadata['example']}',

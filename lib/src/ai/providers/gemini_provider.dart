@@ -39,7 +39,9 @@ class GeminiProvider implements TranslationProvider {
     required String targetLanguage,
     required ArbAiConfig config,
     Map<String, String>? descriptions,
+    Map<String, String>? contexts,
     Map<String, Map<String, dynamic>>? placeholders,
+    String? fileContext,
     Map<String, String>? retryFeedback,
   }) async {
     if (strings.isEmpty) return {};
@@ -63,6 +65,7 @@ class GeminiProvider implements TranslationProvider {
         TranslationPrompt.instructions(
           targetLanguage: targetLanguage,
           config: config,
+          fileContext: fileContext,
         ),
       )
       ..writeln('\nSource strings (JSON):')
@@ -76,6 +79,7 @@ class GeminiProvider implements TranslationProvider {
           'type': 'STRING',
           'description': ?TranslationPrompt.keyContext(
             description: descriptions?[key],
+            context: contexts?[key],
             placeholders: placeholders?[key],
             retryFeedback: retryFeedback?[key],
           ),

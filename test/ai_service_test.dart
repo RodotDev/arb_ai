@@ -286,10 +286,16 @@ void main() {
 
           check(
             welcomeSchema['description'] as String,
-          ).contains('Context: Welcome message shown at homepage.');
+          ).contains('Description: Welcome message shown at homepage.');
+          check(
+            welcomeSchema['description'] as String,
+          ).contains('Location in app: homePage > Header.');
           check(welcomeSchema['description'] as String).contains(
-            'Placeholders info: {name} (desc: User\'s display name, example: John Doe)',
+            'Placeholders info: {name} (type: String, desc: User\'s display name, example: John Doe)',
           );
+          check(
+            prompt,
+          ).contains('App context for all strings: A recipe sharing app.');
 
           final mockResponseBody = {
             'candidates': [
@@ -313,9 +319,12 @@ void main() {
           targetLanguage: 'pt',
           config: config,
           descriptions: {'welcome': 'Welcome message shown at homepage'},
+          contexts: {'welcome': 'homePage:Header'},
+          fileContext: 'A recipe sharing app',
           placeholders: {
             'welcome': {
               'name': {
+                'type': 'String',
                 'description': "User's display name",
                 'example': 'John Doe',
               },
@@ -708,8 +717,14 @@ void main() {
           check(message['role']).equals('user');
           final userText = message['content'] as String;
           check(userText).contains('"welcome":"Welcome {name}"');
-          check(userText).contains('Context: Greeting on the home page.');
-          check(userText).contains('{name} (desc: User name, example: Ana);');
+          check(userText).contains('Description: Greeting on the home page.');
+          check(userText).contains('Location in app: homePage > Header.');
+          check(
+            userText,
+          ).contains('{name} (type: String, desc: User name, example: Ana);');
+          check(
+            system,
+          ).contains('App context for all strings: A recipe sharing app.');
           check(userText).contains('Missing placeholder {name}');
 
           final format =
@@ -732,9 +747,15 @@ void main() {
           targetLanguage: 'pt',
           config: config,
           descriptions: {'welcome': 'Greeting on the home page'},
+          contexts: {'welcome': 'homePage:Header'},
+          fileContext: 'A recipe sharing app',
           placeholders: {
             'welcome': {
-              'name': {'description': 'User name', 'example': 'Ana'},
+              'name': {
+                'type': 'String',
+                'description': 'User name',
+                'example': 'Ana',
+              },
             },
           },
           retryFeedback: {'welcome': 'Missing placeholder {name}'},

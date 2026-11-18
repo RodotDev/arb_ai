@@ -68,7 +68,9 @@ class AnthropicProvider implements TranslationProvider {
     required String targetLanguage,
     required ArbAiConfig config,
     Map<String, String>? descriptions,
+    Map<String, String>? contexts,
     Map<String, Map<String, dynamic>>? placeholders,
+    String? fileContext,
     Map<String, String>? retryFeedback,
   }) async {
     if (strings.isEmpty) return {};
@@ -86,12 +88,13 @@ class AnthropicProvider implements TranslationProvider {
     final system =
         '${TranslationPrompt.role}. Return exactly one entry per input key — '
         'no keys added, removed, or renamed.\n\n'
-        '${TranslationPrompt.instructions(targetLanguage: targetLanguage, config: config)}';
+        '${TranslationPrompt.instructions(targetLanguage: targetLanguage, config: config, fileContext: fileContext)}';
 
     final keyContext = <String, String>{
       for (final key in strings.keys)
         key: ?TranslationPrompt.keyContext(
           description: descriptions?[key],
+          context: contexts?[key],
           placeholders: placeholders?[key],
           retryFeedback: retryFeedback?[key],
         ),

@@ -8,12 +8,12 @@
 
 ## Features
 
-- **Flutter ARB Specification Compliance**: Parses and forwards resource descriptions and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for better contextual translation. Respects the ARB specification by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
+- **Flutter ARB Specification Compliance**: Parses and forwards resource descriptions, resource `context` (where the string appears in the app), the file-wide `@@context`, and detailed placeholder metadata (types, formats, examples, and descriptions) to the AI translation engine for better contextual translation. Respects the ARB specification by automatically skipping non-text resources (like `@key.type: "image"`), preserving them intact in targets.
 - **Smart Diffing for Cost Optimization**: Computes cryptographic MD5 hashes of source translation templates and tracks them locally in `.arb_ai_state.json`. It will only request translations for missing or modified keys, avoiding redundant API calls and keeping your AI translation costs minimal.
 - **Progressive Batch Saving**: Persists translations and state incrementally after each batch. If a translation run is interrupted, it can resume exactly where it left off without losing progress or incurring duplicate costs.
 - **ICU Parser & Validator**: Analyzes both source and target translation strings using a custom-built recursive descent parser. Validates that ICU placeholders, plurals, and select categories match, verifying target-language CLDR rules.
 - **Auto-Recovery Retry Loop**: Detects AI translation anomalies (like missing placeholders or incorrect syntax) and automatically retries translations up to 3 times to heal outputs before applying them to your local files.
-- **Git-Friendly Target Writer**: Serializes target files deterministically (alphabetical order or matching source order, fixed 2-space indentation, trailing newline) while omitting metadata in targets for clean, readable Git diffs.
+- **Git-Friendly Target Writer**: Serializes target files deterministically (alphabetical order or matching source order, fixed 2-space indentation, trailing newline) while omitting key metadata in targets for clean, readable Git diffs. Each target records `"@@locale"` and `"@@author": "ARB AI"`.
 - **DX & CI/CD Ready**: Supports `--dry-run` to estimate translation overheads/costs, and a strict `--check` mode which exits with code `1` if translations are out-of-sync or missing (perfect for continuous integration pipelines and GitHub Actions).
 
 ## Getting Started

@@ -71,6 +71,13 @@ class ArbKeyMetadata {
     required this.customAttributes,
   });
 
+  /// The resource type (`text`, `image` or `css`), or null when not set.
+  String? get type => _stringOrNull(customAttributes['type']);
+
+  /// Where the resource is used in the app, as a `:` separated hierarchy
+  /// (e.g. `homePage:Print dialog box`), or null when not set.
+  String? get context => _stringOrNull(customAttributes['context']);
+
   /// Parses key metadata from JSON.
   factory ArbKeyMetadata.fromJson(String key, Map<String, dynamic> json) {
     final placeholders = <String, ArbPlaceholder>{};
@@ -138,6 +145,10 @@ class ArbFile {
     required this.keyOrder,
   });
 
+  /// The context in which all resources of the file apply (from
+  /// '@@context'), or null when not set.
+  String? get context => _stringOrNull(globalMetadata['@@context']);
+
   /// Parses an ARB content string.
   factory ArbFile.parse(String content) {
     final decoded = jsonDecode(content);
@@ -196,3 +207,7 @@ class ArbFile {
     return ArbFile.parse(file.readAsStringSync());
   }
 }
+
+/// Returns [value] when it is a non-empty string, otherwise null.
+String? _stringOrNull(Object? value) =>
+    value is String && value.isNotEmpty ? value : null;

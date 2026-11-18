@@ -170,7 +170,7 @@ class ArbAiOrchestrator {
 
         // Check resource type
         final metadata = sourceArb.metadata[key];
-        final type = metadata?.customAttributes['type'] as String?;
+        final type = metadata?.type;
         final isText = type == null || type == 'text';
 
         final upToDate = force
@@ -440,6 +440,7 @@ class ArbAiOrchestrator {
 
     // Build context descriptions and placeholder metadata maps for the batch
     final descriptions = <String, String>{};
+    final contexts = <String, String>{};
     final placeholders = <String, Map<String, dynamic>>{};
 
     for (final key in batch.keys) {
@@ -448,6 +449,8 @@ class ArbAiOrchestrator {
         if (metadata.description != null && metadata.description!.isNotEmpty) {
           descriptions[key] = metadata.description!;
         }
+        final context = metadata.context;
+        if (context != null) contexts[key] = context;
         if (metadata.placeholders.isNotEmpty) {
           final phMap = <String, dynamic>{};
           metadata.placeholders.forEach((phName, phValue) {
@@ -475,7 +478,9 @@ class ArbAiOrchestrator {
           targetLanguage: targetLanguage,
           config: config,
           descriptions: descriptions,
+          contexts: contexts,
           placeholders: placeholders,
+          fileContext: sourceArb.context,
           retryFeedback: retryFeedback,
         );
       } catch (e) {
